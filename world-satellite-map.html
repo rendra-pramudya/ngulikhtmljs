@@ -17,26 +17,108 @@
       margin: 0;
       padding: 0;
     }
+    .control-panel {
+      position: absolute;
+      z-index: 1000;
+      left: 10px;
+      top: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      font-family: Arial, sans-serif;
+    }
+    .mode-switch {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(240,240,240,0.8);
+      border-radius: 5px;
+    }
+    .mode-switch label {
+      display: inline-block;
+      margin-right: 15px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .mode-switch input[type="radio"] {
+      margin-right: 5px;
+    }
+    .location-buttons {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .location-btn {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    .location-btn.memorize-mode {
+      background-color: #e74c3c;
+      color: white;
+    }
+    .location-btn.memorize-mode:hover {
+      background-color: #c0392b;
+    }
+    .location-btn.go-mode {
+      background-color: #3498db;
+      color: white;
+    }
+    .location-btn.go-mode:hover {
+      background-color: #2980b9;
+    }
+    .other-buttons {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .other-buttons button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: #95a5a6;
+      color: white;
+    }
+    .other-buttons button:hover {
+      background-color: #7f8c8d;
+    }
   </style>
 </head>
 <body>
-  <div style="position: absolute; z-index: 1000; left: 10px; top: 10px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">
-    <button id="draw-btn">Draw Shape</button>
-    <button id="tank-btn">Tank Icon</button>
-    <button id="car-btn">Car Icon</button>
-    <button id="house-btn">House Icon</button>
+  <div class="control-panel">
+    <div class="mode-switch">
+      <label>
+        <input type="radio" name="mode" value="memorize" checked>
+        Memorize Mode
+      </label>
+      <label>
+        <input type="radio" name="mode" value="go">
+        Go Mode
+      </label>
+    </div>
+    
+    <div class="location-buttons">
+      <button class="location-btn memorize-mode" id="location-1">Map 1</button>
+      <button class="location-btn memorize-mode" id="location-2">Map 2</button>
+      <button class="location-btn memorize-mode" id="location-3">Map 3</button>
+      <button class="location-btn memorize-mode" id="location-4">Map 4</button>
+      <button class="location-btn memorize-mode" id="location-5">Map 5</button>
+    </div>
+    
     <hr>
-    <div>
-      <button id="mem1-save">Memorize 1</button>
-      <button id="mem1-goto">Go 1</button>
-      <button id="mem2-save">Memorize 2</button>
-      <button id="mem2-goto">Go 2</button>
-      <button id="mem3-save">Memorize 3</button>
-      <button id="mem3-goto">Go 3</button>
-      <button id="mem4-save">Memorize 4</button>
-      <button id="mem4-goto">Go 4</button>
-      <button id="mem5-save">Memorize 5</button>
-      <button id="mem5-goto">Go 5</button>
+    
+    <div class="other-buttons">
+      <button id="draw-btn">Freehand Draw</button>
+      <button id="clear-btn">Clear Drawings</button>
+      <button id="show-locations-btn">Show All Locations</button>
+      <button id="tank-btn">Tank Icon</button>
+      <button id="car-btn">Car Icon</button>
+      <button id="house-btn">House Icon</button>
     </div>
   </div>
   <div id="map"></div>
@@ -50,31 +132,177 @@
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
     }).addTo(map);
 
-    // Draw control
+    // Freehand drawing setup
     var drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
-    var drawControl = new L.Control.Draw({
-      edit: { featureGroup: drawnItems },
-      draw: {
-        polygon: true,
-        polyline: true,
-        rectangle: true,
-        circle: true,
-        marker: false
+    
+    // Freehand drawing variables
+    var isDrawing = false;
+    var currentPath = [];
+    var drawingMode = false;
+    
+    // Freehand drawing functions
+    function startFreehandDraw() {
+      drawingMode = true;
+      map.getContainer().style.cursor = 'crosshair';
+      map.dragging.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+      map.boxZoom.disable();
+      map.keyboard.disable();
+    }
+    
+    function stopFreehandDraw() {
+      drawingMode = false;
+      isDrawing = false;
+      currentPath = [];
+      map.getContainer().style.cursor = '';
+      map.dragging.enable();
+      map.doubleClickZoom.enable();
+      map.scrollWheelZoom.enable();
+      map.boxZoom.enable();
+      map.keyboard.enable();
+    }
+    
+    function clearAllDrawings() {
+      drawnItems.clearLayers();
+    }
+    
+    // Mouse event handlers for freehand drawing
+    map.on('mousedown', function(e) {
+      if (!drawingMode) return;
+      isDrawing = true;
+      currentPath = [e.latlng];
+    });
+    
+    map.on('mousemove', function(e) {
+      if (!drawingMode || !isDrawing) return;
+      currentPath.push(e.latlng);
+      
+      // Create temporary polyline for visual feedback
+      if (currentPath.length > 1) {
+        // Remove previous temporary line
+        map.eachLayer(function(layer) {
+          if (layer.options && layer.options.temp) {
+            map.removeLayer(layer);
+          }
+        });
+        
+        // Add new temporary line
+        L.polyline(currentPath, {
+          color: '#ff0000',
+          weight: 3,
+          opacity: 0.7,
+          temp: true
+        }).addTo(map);
       }
+    });
+    
+    map.on('mouseup', function(e) {
+      if (!drawingMode || !isDrawing) return;
+      isDrawing = false;
+      
+      if (currentPath.length > 1) {
+        // Remove temporary line
+        map.eachLayer(function(layer) {
+          if (layer.options && layer.options.temp) {
+            map.removeLayer(layer);
+          }
+        });
+        
+        // Add final polyline to drawn items
+        var finalLine = L.polyline(currentPath, {
+          color: '#ff0000',
+          weight: 3,
+          opacity: 1
+        });
+        drawnItems.addLayer(finalLine);
+      }
+      
+      currentPath = [];
+    });
+    
+    // Touch event handlers for mobile devices
+    map.on('touchstart', function(e) {
+      if (!drawingMode) return;
+      e.originalEvent.preventDefault();
+      isDrawing = true;
+      var touch = e.originalEvent.touches[0];
+      var latlng = map.containerPointToLatLng([touch.clientX, touch.clientY]);
+      currentPath = [latlng];
+    });
+    
+    map.on('touchmove', function(e) {
+      if (!drawingMode || !isDrawing) return;
+      e.originalEvent.preventDefault();
+      var touch = e.originalEvent.touches[0];
+      var latlng = map.containerPointToLatLng([touch.clientX, touch.clientY]);
+      currentPath.push(latlng);
+      
+      if (currentPath.length > 1) {
+        map.eachLayer(function(layer) {
+          if (layer.options && layer.options.temp) {
+            map.removeLayer(layer);
+          }
+        });
+        
+        L.polyline(currentPath, {
+          color: '#ff0000',
+          weight: 3,
+          opacity: 0.7,
+          temp: true
+        }).addTo(map);
+      }
+    });
+    
+    map.on('touchend', function(e) {
+      if (!drawingMode || !isDrawing) return;
+      e.originalEvent.preventDefault();
+      isDrawing = false;
+      
+      if (currentPath.length > 1) {
+        map.eachLayer(function(layer) {
+          if (layer.options && layer.options.temp) {
+            map.removeLayer(layer);
+          }
+        });
+        
+        var finalLine = L.polyline(currentPath, {
+          color: '#ff0000',
+          weight: 3,
+          opacity: 1
+        });
+        drawnItems.addLayer(finalLine);
+      }
+      
+      currentPath = [];
     });
 
     // Button logic
-    // Always add draw control to the map
-    map.addControl(drawControl);
-    // When Draw Shape button is clicked, activate polygon drawing
     document.getElementById('draw-btn').onclick = function() {
-      new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
+      if (drawingMode) {
+        stopFreehandDraw();
+        this.textContent = 'Freehand Draw';
+        this.style.backgroundColor = '#95a5a6';
+      } else {
+        startFreehandDraw();
+        this.textContent = 'Stop Drawing';
+        this.style.backgroundColor = '#e74c3c';
+      }
     };
-
-    map.on(L.Draw.Event.CREATED, function (e) {
-      drawnItems.addLayer(e.layer);
-    });
+    
+    document.getElementById('clear-btn').onclick = function() {
+      clearAllDrawings();
+      if (drawingMode) {
+        stopFreehandDraw();
+        document.getElementById('draw-btn').textContent = 'Freehand Draw';
+        document.getElementById('draw-btn').style.backgroundColor = '#95a5a6';
+      }
+    };
+    
+    document.getElementById('show-locations-btn').onclick = function() {
+      showAllLocations();
+    };
 
     // Icon definitions
     var tankIcon = L.icon({
@@ -122,26 +350,151 @@
 
     // Memorize and go to location logic
     var memorized = [null, null, null, null, null];
-    function memorize(idx) {
-      memorized[idx] = {
-        center: map.getCenter(),
-        zoom: map.getZoom()
-      };
-      alert('Location '+(idx+1)+' memorized!');
+    var currentMode = 'memorize'; // Default to memorize mode
+    
+    // Function to get elevation from coordinates
+    async function getElevation(lat, lng) {
+      try {
+        // Using Open-Elevation API (free service)
+        const response = await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`);
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          return data.results[0].elevation;
+        }
+        return null;
+      } catch (error) {
+        console.log('Elevation service unavailable, using map zoom as approximation');
+        // Fallback: approximate elevation based on zoom level (very rough estimate)
+        const zoom = map.getZoom();
+        return Math.max(0, (20 - zoom) * 100); // Rough approximation
+      }
     }
+    
+    async function memorize(idx) {
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      
+      // Show loading message
+      const loadingMsg = document.createElement('div');
+      loadingMsg.textContent = 'Getting elevation data...';
+      loadingMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:white;padding:10px;border-radius:5px;z-index:9999;';
+      document.body.appendChild(loadingMsg);
+      
+      try {
+        const elevation = await getElevation(center.lat, center.lng);
+        
+        memorized[idx] = {
+          center: center,
+          zoom: zoom,
+          elevation: elevation,
+          timestamp: new Date().toLocaleString()
+        };
+        
+        document.body.removeChild(loadingMsg);
+        
+        const elevationText = elevation !== null ? `${Math.round(elevation)}m` : 'Unknown';
+        alert(`Location ${idx+1} memorized!\nCoordinates: ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}\nElevation: ${elevationText}\nZoom: ${zoom}`);
+        
+        updateLocationButtons(); // Update button appearance
+      } catch (error) {
+        document.body.removeChild(loadingMsg);
+        alert('Error getting elevation data. Location saved without elevation.');
+        
+        memorized[idx] = {
+          center: center,
+          zoom: zoom,
+          elevation: null,
+          timestamp: new Date().toLocaleString()
+        };
+        
+        updateLocationButtons();
+      }
+    }
+    
     function goTo(idx) {
       if (!memorized[idx]) {
         alert('No location memorized for '+(idx+1));
         return;
       }
-      // Only pan to the memorized location with smooth animation
-      var target = memorized[idx];
-      map.panTo(target.center, {animate: true, duration: 2});
+      
+      const target = memorized[idx];
+      const elevationText = target.elevation !== null ? `${Math.round(target.elevation)}m` : 'Unknown';
+      
+      // Show location info
+      alert(`Going to Location ${idx+1}\nCoordinates: ${target.center.lat.toFixed(6)}, ${target.center.lng.toFixed(6)}\nElevation: ${elevationText}\nSaved: ${target.timestamp}`);
+      
+      // Pan to the memorized location with smooth animation
+      map.setView(target.center, target.zoom, {animate: true, duration: 2});
     }
-    for (let i=0; i<5; i++) {
-      document.getElementById('mem'+(i+1)+'-save').onclick = function() { memorize(i); };
-      document.getElementById('mem'+(i+1)+'-goto').onclick = function() { goTo(i); };
+    
+    function showAllLocations() {
+      let locationList = 'Memorized Locations:\n\n';
+      let hasLocations = false;
+      
+      for (let i = 0; i < 5; i++) {
+        if (memorized[i]) {
+          hasLocations = true;
+          const loc = memorized[i];
+          const elevationText = loc.elevation !== null ? `${Math.round(loc.elevation)}m` : 'Unknown';
+          locationList += `Map ${i+1}:\n`;
+          locationList += `  Coordinates: ${loc.center.lat.toFixed(6)}, ${loc.center.lng.toFixed(6)}\n`;
+          locationList += `  Elevation: ${elevationText}\n`;
+          locationList += `  Zoom Level: ${loc.zoom}\n`;
+          locationList += `  Saved: ${loc.timestamp}\n\n`;
+        }
+      }
+      
+      if (!hasLocations) {
+        alert('No locations have been memorized yet.');
+      } else {
+        alert(locationList);
+      }
     }
+    
+    function updateLocationButtons() {
+      for (let i = 1; i <= 5; i++) {
+        const btn = document.getElementById('location-' + i);
+        const isMemorized = memorized[i-1] !== null;
+        
+        // Keep text the same, only change color/class
+        btn.textContent = 'Map ' + i;
+        
+        if (currentMode === 'memorize') {
+          btn.className = 'location-btn memorize-mode';
+          btn.style.opacity = '1';
+        } else {
+          btn.className = 'location-btn go-mode';
+          btn.style.opacity = isMemorized ? '1' : '0.5';
+        }
+      }
+    }
+    
+    function handleLocationClick(index) {
+      if (currentMode === 'memorize') {
+        memorize(index);
+      } else {
+        goTo(index);
+      }
+    }
+    
+    // Set up location button event listeners
+    for (let i = 1; i <= 5; i++) {
+      document.getElementById('location-' + i).onclick = function() {
+        handleLocationClick(i - 1);
+      };
+    }
+    
+    // Set up mode switch event listeners
+    const modeRadios = document.querySelectorAll('input[name="mode"]');
+    modeRadios.forEach(radio => {
+      radio.addEventListener('change', function() {
+        currentMode = this.value;
+        updateLocationButtons();
+      });
+    });
+    
+    // Initialize button appearance
+    updateLocationButtons();
   </script>
 </body>
 </html>
