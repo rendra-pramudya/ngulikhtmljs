@@ -131,20 +131,9 @@
         alert('No location memorized for '+(idx+1));
         return;
       }
-      // Animate: zoom out, pan, then zoom in
+      // Only pan to the memorized location with smooth animation
       var target = memorized[idx];
-      var minZoom = 2;
-      var currentZoom = map.getZoom();
-      // Step 1: Zoom out
-      map.setZoom(minZoom);
-      // Step 2: After zoom out, pan to target
-      setTimeout(function() {
-        map.panTo(target.center, {animate: true, duration: 1.2});
-        // Step 3: After pan, zoom in
-        setTimeout(function() {
-          map.setZoom(target.zoom, {animate: true});
-        }, 900);
-      }, 700);
+      map.panTo(target.center, {animate: true, duration: 2});
     }
     for (let i=0; i<5; i++) {
       document.getElementById('mem'+(i+1)+'-save').onclick = function() { memorize(i); };
