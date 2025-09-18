@@ -65,8 +65,11 @@
     });
 
     // Button logic
+    // Always add draw control to the map
+    map.addControl(drawControl);
+    // When Draw Shape button is clicked, activate polygon drawing
     document.getElementById('draw-btn').onclick = function() {
-      if (!map.hasControl(drawControl)) map.addControl(drawControl);
+      new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
     };
 
     map.on(L.Draw.Event.CREATED, function (e) {
