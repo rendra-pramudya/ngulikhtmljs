@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Satellite Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+  <style>
+    #map {
+      height: 100vh;
+      width: 100vw;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div style="position: absolute; z-index: 1000; left: 10px; top: 10px; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 8px;">
+    <button id="draw-btn">Draw Shape</button>
+    <button id="tank-btn">Tank Icon</button>
+    <button id="car-btn">Car Icon</button>
+    <button id="house-btn">House Icon</button>
+    <hr>
+    <div>
+      <button id="mem1-save">Memorize 1</button>
+      <button id="mem1-goto">Go 1</button>
+      <button id="mem2-save">Memorize 2</button>
+      <button id="mem2-goto">Go 2</button>
+      <button id="mem3-save">Memorize 3</button>
+      <button id="mem3-goto">Go 3</button>
+      <button id="mem4-save">Memorize 4</button>
+      <button id="mem4-goto">Go 4</button>
+      <button id="mem5-save">Memorize 5</button>
+      <button id="mem5-goto">Go 5</button>
+    </div>
+  </div>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+  <script>
+    // Map setup
+    var map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+    }).addTo(map);
+
+    // Draw control
+    var drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    var drawControl = new L.Control.Draw({
+      edit: { featureGroup: drawnItems },
+      draw: {
+        polygon: true,
+        polyline: true,
+        rectangle: true,
+        circle: true,
+        marker: false
+      }
+    });
+
+    // Button logic
+    document.getElementById('draw-btn').onclick = function() {
+      if (!map.hasControl(drawControl)) map.addControl(drawControl);
+    };
+
+    map.on(L.Draw.Event.CREATED, function (e) {
+      drawnItems.addLayer(e.layer);
+    });
+
+    // Icon definitions
+    var tankIcon = L.icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/3079/3079326.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+    var carIcon = L.icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+    var houseIcon = L.icon({
+      iconUrl: 'https://cdn-icons-png.flaticon.com/512/616/616494.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+
+    // Place icon logic
+    var placeMode = null;
+    function setPlaceMode(mode) {
+      placeMode = mode;
+      map.getContainer().style.cursor = 'crosshair';
+    }
+    function clearPlaceMode() {
+      placeMode = null;
+      map.getContainer().style.cursor = '';
+    }
+    document.getElementById('tank-btn').onclick = function() { setPlaceMode('tank'); };
+    document.getElementById('car-btn').onclick = function() { setPlaceMode('car'); };
+    document.getElementById('house-btn').onclick = function() { setPlaceMode('house'); };
+
+    map.on('click', function(e) {
+      if (!placeMode) return;
+      var icon;
+      if (placeMode === 'tank') icon = tankIcon;
+      if (placeMode === 'car') icon = carIcon;
+      if (placeMode === 'house') icon = houseIcon;
+      L.marker(e.latlng, {icon: icon}).addTo(map);
+      clearPlaceMode();
+    });
+
+    // Memorize and go to location logic
+    var memorized = [null, null, null, null, null];
+    function memorize(idx) {
+      memorized[idx] = {
+        center: map.getCenter(),
+        zoom: map.getZoom()
+      };
+      alert('Location '+(idx+1)+' memorized!');
+    }
+    function goTo(idx) {
+      if (!memorized[idx]) {
+        alert('No location memorized for '+(idx+1));
+        return;
+      }
+      // Animate: zoom out, pan, then zoom in
+      var target = memorized[idx];
+      var minZoom = 2;
+      var currentZoom = map.getZoom();
+      // Step 1: Zoom out
+      map.setZoom(minZoom);
+      // Step 2: After zoom out, pan to target
+      setTimeout(function() {
+        map.panTo(target.center, {animate: true, duration: 1.2});
+        // Step 3: After pan, zoom in
+        setTimeout(function() {
+          map.setZoom(target.zoom, {animate: true});
+        }, 900);
+      }, 700);
+    }
+    for (let i=0; i<5; i++) {
+      document.getElementById('mem'+(i+1)+'-save').onclick = function() { memorize(i); };
+      document.getElementById('mem'+(i+1)+'-goto').onclick = function() { goTo(i); };
+    }
+  </script>
+</body>
+</html>
