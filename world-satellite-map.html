@@ -20,42 +20,83 @@
     .control-panel {
       position: absolute;
       z-index: 1000;
-      left: 10px;
-      top: 10px;
+      right: 210px;
+      top: 20px;
       background: rgba(255,255,255,0.9);
-      padding: 15px;
-      border-radius: 8px;
+      padding: 20px;
+      border-radius: 0px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
       font-family: Arial, sans-serif;
     }
     .mode-switch {
-      margin-bottom: 15px;
-      padding: 10px;
+      margin-bottom: 0px;
+      padding: 0px;
       background: rgba(240,240,240,0.8);
       border-radius: 5px;
     }
-    .mode-switch label {
+    .mode-switch button {
       display: inline-block;
-      margin-right: 15px;
+      margin-right: 0px;
       cursor: pointer;
-      font-weight: bold;
+      background: none;
+      border: none;
+      outline: none;
+      padding: 0;
+      transition: box-shadow 0.2s;
     }
-    .mode-switch input[type="radio"] {
-      margin-right: 5px;
+    .mode-switch button.selected {
+      box-shadow: 0 0 0 3px #3498db;
+      border-radius: 0px;
+    }
+    #map-panel {
+      top: 95px;
+      right: 10px;
+      width: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     .location-buttons {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
       margin-bottom: 10px;
     }
     .location-btn {
-      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      padding: 0;
       border: none;
-      border-radius: 4px;
+      border-radius: 0;
+      background: none;
       cursor: pointer;
+      margin: 0;
+    }
+    .map-btn-img {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 48px;
+    }
+    .map-btn-img img {
+      width: 48px;
+      height: 48px;
+      display: block;
+    }
+    .map-btn-num {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.3em;
       font-weight: bold;
-      transition: all 0.3s ease;
+      color: white;
+      text-shadow: 0 0 4px #000, 0 0 2px #333;
+      pointer-events: none;
     }
     .location-btn.memorize-mode {
       background-color: #e74c3c;
@@ -73,52 +114,77 @@
     }
     .other-buttons {
       display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+      margin-top: 10px;
     }
     .other-buttons button {
-      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      width: 48px;
+      height: 48px;
+      padding: 0;
       border: none;
-      border-radius: 4px;
+      border-radius: 0px;
+      background: none;
       cursor: pointer;
-      background-color: #95a5a6;
-      color: white;
     }
     .other-buttons button:hover {
       background-color: #7f8c8d;
     }
+    #drawing-panel {
+      top: 95px;
+      right: 85px;
+      width: 32px;
+    }
+    #mode-panel {
+      top: 10px;
+      right: 10px;
+      width: 100px;
+    }
   </style>
 </head>
 <body>
-  <div class="control-panel">
-    <div class="mode-switch">
-      <label>
-        <input type="radio" name="mode" value="memorize" checked>
-        Memorize Mode
-      </label>
-      <label>
-        <input type="radio" name="mode" value="go">
-        Go Mode
-      </label>
-    </div>
-    
-    <div class="location-buttons">
-      <button class="location-btn memorize-mode" id="location-1">Map 1</button>
-      <button class="location-btn memorize-mode" id="location-2">Map 2</button>
-      <button class="location-btn memorize-mode" id="location-3">Map 3</button>
-      <button class="location-btn memorize-mode" id="location-4">Map 4</button>
-      <button class="location-btn memorize-mode" id="location-5">Map 5</button>
-    </div>
-    
-    <hr>
-    
+  <div class="control-panel" id="drawing-panel">
     <div class="other-buttons">
-      <button id="draw-btn">Freehand Draw</button>
-      <button id="clear-btn">Clear Drawings</button>
-      <button id="show-locations-btn">Show All Locations</button>
-      <button id="tank-btn">Tank Icon</button>
-      <button id="car-btn">Car Icon</button>
-      <button id="house-btn">House Icon</button>
+      <button id="draw-btn" style="padding:0;border:none;background:none;">
+        <img id="draw-btn-img" src="image/iconDrawingG.jpg" alt="Freehand Draw" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="clear-btn" style="padding:0;border:none;background:none;">
+        <img src="image/IconClearG.jpg" alt="Clear Drawings" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="measure-btn" style="padding:0;border:none;background:none;">
+        <img id="measure-btn-img" src="image/IconRulerG.jpg" alt="Measure Distance" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="tank-btn" style="padding:0;border:none;background:none;">
+        <img src="image/IconTankG.jpg" alt="Tank Icon" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="car-btn" style="padding:0;border:none;background:none;">
+        <img src="image/IconUAVG.jpg" alt="Car Icon" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="house-btn" style="padding:0;border:none;background:none;">
+        <img src="image/IconJetFighterG.jpg" alt="House Icon" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+    </div>
+  </div>
+  <div class="control-panel" id="map-panel">
+    <div class="location-buttons">
+      <button class="location-btn" id="location-1"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-1" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-1">1</span></span></button>
+      <button class="location-btn" id="location-2"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-2" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-2">2</span></span></button>
+      <button class="location-btn" id="location-3"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-3" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-3">3</span></span></button>
+      <button class="location-btn" id="location-4"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-4" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-4">4</span></span></button>
+      <button class="location-btn" id="location-5"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-5" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-5">5</span></span></button>
+    </div>
+  </div>
+  <div class="control-panel" id="mode-panel">
+    <div class="mode-switch">
+      <button id="mode-memorize" style="padding:0;border:none;background:none;outline:none;">
+        <img id="mode-memorize-img" src="image/IconSaveL.jpg" alt="Memorize Mode" style="width:40px;height:40px;vertical-align:middle;">
+      </button>
+      <button id="mode-go" style="padding:0;border:none;background:none;outline:none;">
+        <img id="mode-go-img" src="image/IconGotoMapG.jpg" alt="Go Mode" style="width:40px;height:40px;vertical-align:middle;">
+      </button>
     </div>
   </div>
   <div id="map"></div>
@@ -166,6 +232,11 @@
     
     function clearAllDrawings() {
       drawnItems.clearLayers();
+      if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
+      measureMarkers.forEach(m => map.removeLayer(m));
+      measureMarkers = [];
+      if (measureTooltip) { map.removeLayer(measureTooltip); measureTooltip = null; }
+      measurePoints = [];
     }
     
     // Mouse event handlers for freehand drawing
@@ -280,13 +351,16 @@
 
     // Button logic
     document.getElementById('draw-btn').onclick = function() {
+      var img = document.getElementById('draw-btn-img');
       if (drawingMode) {
         stopFreehandDraw();
-        this.textContent = 'Freehand Draw';
+        img.src = 'image/iconDrawingG.jpg';
+        img.alt = 'Freehand Draw';
         this.style.backgroundColor = '#95a5a6';
       } else {
         startFreehandDraw();
-        this.textContent = 'Stop Drawing';
+        img.src = 'image/iconDrawingL.jpg';
+        img.alt = 'Stop Drawing';
         this.style.backgroundColor = '#e74c3c';
       }
     };
@@ -300,25 +374,21 @@
       }
     };
     
-    document.getElementById('show-locations-btn').onclick = function() {
-      showAllLocations();
-    };
-
     // Icon definitions
     var tankIcon = L.icon({
-      iconUrl: 'https://cdn-icons-png.flaticon.com/512/3079/3079326.png',
+      iconUrl: 'image/IconTankG.jpg',
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32]
     });
     var carIcon = L.icon({
-      iconUrl: 'https://cdn-icons-png.flaticon.com/512/743/743007.png',
+      iconUrl: 'image/IconUAVG.jpg',
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32]
     });
     var houseIcon = L.icon({
-      iconUrl: 'https://cdn-icons-png.flaticon.com/512/616/616494.png',
+      iconUrl: 'image/IconJetFighterG.jpg',
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32]
@@ -349,7 +419,30 @@
     });
 
     // Memorize and go to location logic
-    var memorized = [null, null, null, null, null];
+    // Load memorized locations from localStorage
+    function loadMemorized() {
+      try {
+        const saved = localStorage.getItem('memorizedLocations');
+        if (saved) {
+          const arr = JSON.parse(saved);
+          // Convert center back to LatLng objects
+          return arr.map(loc => {
+            if (!loc) return null;
+            return {
+              ...loc,
+              center: L.latLng(loc.center.lat, loc.center.lng)
+            };
+          });
+        }
+      } catch (e) {}
+      return [null, null, null, null, null];
+    }
+
+    function saveMemorized() {
+      localStorage.setItem('memorizedLocations', JSON.stringify(memorized));
+    }
+
+    var memorized = loadMemorized();
     var currentMode = 'memorize'; // Default to memorize mode
     
     // Function to get elevation from coordinates
@@ -382,31 +475,27 @@
       
       try {
         const elevation = await getElevation(center.lat, center.lng);
-        
         memorized[idx] = {
           center: center,
           zoom: zoom,
           elevation: elevation,
           timestamp: new Date().toLocaleString()
         };
-        
+        saveMemorized();
         document.body.removeChild(loadingMsg);
-        
         const elevationText = elevation !== null ? `${Math.round(elevation)}m` : 'Unknown';
         alert(`Location ${idx+1} memorized!\nCoordinates: ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}\nElevation: ${elevationText}\nZoom: ${zoom}`);
-        
         updateLocationButtons(); // Update button appearance
       } catch (error) {
         document.body.removeChild(loadingMsg);
         alert('Error getting elevation data. Location saved without elevation.');
-        
         memorized[idx] = {
           center: center,
           zoom: zoom,
           elevation: null,
           timestamp: new Date().toLocaleString()
         };
-        
+        saveMemorized();
         updateLocationButtons();
       }
     }
@@ -416,15 +505,42 @@
         alert('No location memorized for '+(idx+1));
         return;
       }
-      
       const target = memorized[idx];
       const elevationText = target.elevation !== null ? `${Math.round(target.elevation)}m` : 'Unknown';
-      
-      // Show location info
       alert(`Going to Location ${idx+1}\nCoordinates: ${target.center.lat.toFixed(6)}, ${target.center.lng.toFixed(6)}\nElevation: ${elevationText}\nSaved: ${target.timestamp}`);
-      
-      // Pan to the memorized location with smooth animation
-      map.setView(target.center, target.zoom, {animate: true, duration: 2});
+
+      // Preload tiles for smoother fly-in
+      preloadTiles(target.center, target.zoom).then(() => {
+        map.setView(target.center, target.zoom, {animate: true, duration: 2});
+      });
+    }
+
+    // Preload tiles for a given center and zoom
+    function preloadTiles(center, zoom) {
+      return new Promise(resolve => {
+        // Calculate tile coordinates for the center
+        var tileSize = 256;
+        var crs = map.options.crs;
+        var tileCoords = crs.project(center);
+        var scale = crs.scale(zoom);
+        var tileX = Math.floor(tileCoords.x * scale / tileSize);
+        var tileY = Math.floor(tileCoords.y * scale / tileSize);
+
+        // Preload a 3x3 grid of tiles around the center
+        var promises = [];
+        for (var dx = -1; dx <= 1; dx++) {
+          for (var dy = -1; dy <= 1; dy++) {
+            var x = tileX + dx;
+            var y = tileY + dy;
+            var url = map._layers[Object.keys(map._layers)[0]]._url
+              .replace('{z}', zoom)
+              .replace('{x}', x)
+              .replace('{y}', y);
+            promises.push(fetch(url).catch(()=>{}));
+          }
+        }
+        Promise.all(promises).then(() => setTimeout(resolve, 200)); // Wait a bit for browser cache
+      });
     }
     
     function showAllLocations() {
@@ -454,19 +570,17 @@
     function updateLocationButtons() {
       for (let i = 1; i <= 5; i++) {
         const btn = document.getElementById('location-' + i);
+        const img = document.getElementById('location-img-' + i);
         const isMemorized = memorized[i-1] !== null;
-        
-        // Keep text the same, only change color/class
-        btn.textContent = 'Map ' + i;
-        
         if (currentMode === 'memorize') {
-          btn.className = 'location-btn memorize-mode';
-          btn.style.opacity = '1';
+          img.src = 'image/IconMapR.jpg';
         } else {
-          btn.className = 'location-btn go-mode';
-          btn.style.opacity = isMemorized ? '1' : '0.5';
+          img.src = isMemorized ? 'image/IconMapL.jpg' : 'image/IconMapG.jpg';
         }
+        btn.className = 'location-btn';
+        btn.style.opacity = currentMode === 'go' && !isMemorized ? '0.5' : '1';
       }
+      saveMemorized(); // Save state on every update
     }
     
     function handleLocationClick(index) {
@@ -484,15 +598,108 @@
       };
     }
     
-    // Set up mode switch event listeners
-    const modeRadios = document.querySelectorAll('input[name="mode"]');
-    modeRadios.forEach(radio => {
-      radio.addEventListener('change', function() {
-        currentMode = this.value;
-        updateLocationButtons();
+    // Mode switch icon logic
+    function setMode(mode) {
+      currentMode = mode;
+      updateLocationButtons();
+      // Update icons
+      if (mode === 'memorize') {
+        document.getElementById('mode-memorize').classList.add('selected');
+        document.getElementById('mode-go').classList.remove('selected');
+        document.getElementById('mode-memorize-img').src = 'image/IconSaveL.jpg';
+        document.getElementById('mode-go-img').src = 'image/IconGotoMapG.jpg';
+      } else {
+        document.getElementById('mode-go').classList.add('selected');
+        document.getElementById('mode-memorize').classList.remove('selected');
+        document.getElementById('mode-memorize-img').src = 'image/IconSaveG.jpg';
+        document.getElementById('mode-go-img').src = 'image/IconGotoMapL.jpg';
+      }
+    }
+
+    document.getElementById('mode-memorize').onclick = function() { setMode('memorize'); };
+    document.getElementById('mode-go').onclick = function() { setMode('go'); };
+
+    // Measuring tool variables
+    var measuring = false;
+    var measurePoints = [];
+    var measureLine = null;
+    var measureMarkers = [];
+    var measureTooltip = null;
+
+    function startMeasuring() {
+      measuring = true;
+      measurePoints = [];
+      if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
+      measureMarkers.forEach(m => map.removeLayer(m));
+      measureMarkers = [];
+      if (measureTooltip) { map.removeLayer(measureTooltip); measureTooltip = null; }
+      map.getContainer().style.cursor = 'crosshair';
+    }
+
+    function stopMeasuring() {
+      measuring = false;
+      map.getContainer().style.cursor = '';
+    }
+
+    function updateMeasure() {
+      if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
+      measureMarkers.forEach(m => map.removeLayer(m));
+      measureMarkers = [];
+      if (measurePoints.length > 1) {
+        measureLine = L.polyline(measurePoints, {color: 'orange', weight: 4, dashArray: '6,6'}).addTo(map);
+      }
+      measurePoints.forEach((pt, i) => {
+        var marker = L.circleMarker(pt, {radius: 6, color: 'orange', fillColor: 'white', fillOpacity: 1, weight: 2}).addTo(map);
+        measureMarkers.push(marker);
       });
+      // Tooltip for total distance
+      if (measureTooltip) { map.removeLayer(measureTooltip); measureTooltip = null; }
+      if (measurePoints.length > 1) {
+        var dist = 0;
+        for (var i=1; i<measurePoints.length; i++) {
+          dist += map.distance(measurePoints[i-1], measurePoints[i]);
+        }
+        var last = measurePoints[measurePoints.length-1];
+        var distText = dist >= 1000 ? (dist/1000).toFixed(2) + ' km' : dist.toFixed(1) + ' m';
+        measureTooltip = L.popup({closeButton:false, autoClose:false})
+          .setLatLng(last)
+          .setContent('<b>Total: ' + distText + '</b>')
+          .addTo(map);
+      }
+    }
+
+    document.getElementById('measure-btn').onclick = function() {
+      var img = document.getElementById('measure-btn-img');
+      if (measuring) {
+        stopMeasuring();
+        img.src = 'image/IconRulerG.jpg';
+        img.alt = 'Measure Distance';
+        this.style.backgroundColor = '#95a5a6';
+        // Do NOT clear measurement visuals here
+      } else {
+        startMeasuring();
+        img.src = 'image/IconRulerL.jpg';
+        img.alt = 'Stop Measuring';
+        this.style.backgroundColor = '#e67e22';
+      }
+    };
+
+    map.on('click', function(e) {
+      if (measuring) {
+        measurePoints.push(e.latlng);
+        updateMeasure();
+      }
     });
-    
+
+    map.on('dblclick', function(e) {
+      if (measuring) {
+        stopMeasuring();
+        document.getElementById('measure-btn').textContent = 'Measure Distance';
+        document.getElementById('measure-btn').style.backgroundColor = '#95a5a6';
+        // Do NOT clear measurement visuals here
+      }
+    });
+
     // Initialize button appearance
     updateLocationButtons();
   </script>
