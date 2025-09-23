@@ -77,9 +77,10 @@
     .location-buttons {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 0px !important;
+      row-gap: 0px !important;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 0px;
     }
     .location-btn {
       display: flex;
@@ -97,12 +98,12 @@
     .map-btn-img {
       position: relative;
       display: inline-block;
-      width: 48px;
-      height: 48px;
+      width: 32px;
+      height: 32px;
     }
     .map-btn-img img {
-      width: 48px;
-      height: 48px;
+      width: 32px;
+      height: 32px;
       display: block;
     }
     .map-btn-num {
@@ -159,7 +160,7 @@
     #mode-panel {
       top: 10px;
       right: 10px;
-      width: 100px;
+      width: 92px;
     }
     #map-panel {
       top: 80px;
@@ -196,6 +197,29 @@
       background: #3498db;
       color: white;
     }
+    .color-palette-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: center;
+    }
+    .palette-color-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      cursor: pointer;
+      position: relative;
+    }
+    .palette-color-btn:hover {
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    }
+    .palette-color-btn.selected {
+      border: 2px solid #333;
+    }
+    /* Selection highlight for units */
+    .leaflet-marker-icon.unit-selected {
+      filter: drop-shadow(0 0 6px yellow) brightness(1.15);
+    }
   </style>
 </head>
 <body>
@@ -211,7 +235,7 @@
     </div>
   </div>
 
-  <div class="control-panel" id="tools-panel" style="top: 190px; right: 70px; width: 32px;">
+  <div class="control-panel" id="tools-panel" style="top: 175px; right: 70px; width: 32px;">
     <div class="location-buttons">
       <button id="measure-btn" style="padding:0;border:none;background:none;">
         <img id="measure-btn-img" src="image/IconRulerG.jpg" alt="Measure Distance" style="width:32px;height:32px;vertical-align:middle;">
@@ -225,15 +249,25 @@
       <button id="jetfighter-btn" style="padding:0;border:none;background:none;">
         <img src="image/IconJetFighterG.jpg" alt="JetFighter Icon" style="width:32px;height:32px;vertical-align:middle;">
       </button>
+      <button id="helicopter-btn" style="padding:0;border:none;background:none;">
+        <img src="image/IconHelicopterG.jpg" alt="Helicopter Icon" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="submarine-btn" style="padding:0;border:none;background:none;">
+        <img src="image/IconSubmarineG.jpg" alt="Submarine Icon" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="select-mode-btn" title="Select units" style="padding:0;border:none;background:none;width:32px;height:32px;line-height:32px;text-align:center;">
+        <img id="select-mode-btn-img" src="image/IconSelectRectangleG.jpg" alt="Select Units" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="animate-path-btn" title="Animate along path" style="padding:0;border:none;background:none;width:32px;height:32px;line-height:32px;font-size:22px;text-align:center;">▶</button>
     </div>
   </div>
   <div class="control-panel" id="map-panel">
     <div class="location-buttons">
-      <button class="location-btn" id="location-1"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-1" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-1">1</span></span></button>
-      <button class="location-btn" id="location-2"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-2" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-2">2</span></span></button>
-      <button class="location-btn" id="location-3"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-3" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-3">3</span></span></button>
-      <button class="location-btn" id="location-4"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-4" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-4">4</span></span></button>
-      <button class="location-btn" id="location-5"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-5" style="width:48px;height:48px;"><span class="map-btn-num" id="location-num-5">5</span></span></button>
+      <button class="location-btn" id="location-1"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-1" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-1">1</span></span></button>
+      <button class="location-btn" id="location-2"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-2" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-2">2</span></span></button>
+      <button class="location-btn" id="location-3"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-3" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-3">3</span></span></button>
+      <button class="location-btn" id="location-4"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-4" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-4">4</span></span></button>
+      <button class="location-btn" id="location-5"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-5" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-5">5</span></span></button>
     </div>
   </div>
   <div class="control-panel" id="mode-panel">
@@ -246,13 +280,19 @@
       </button>
     </div>
   </div>
+  <div class="control-panel" id="color-palette-panel" style="top: 80px; right: 130px; width: 40px; display: none;">
+    <div class="color-palette-buttons">
+      <button class="palette-color-btn" data-color="#ff0000" title="Red" style="background:#ff0000;width:32px;height:32px;border:none;margin-bottom:4px;"></button>
+      <button class="palette-color-btn" data-color="#00ff00" title="Green" style="background:#00ff00;width:32px;height:32px;border:none;margin-bottom:4px;"></button>
+      <button class="palette-color-btn" data-color="#0000ff" title="Blue" style="background:#0000ff;width:32px;height:32px;border:none;margin-bottom:4px;"></button>
+      <button class="palette-color-btn" data-color="#000000" title="Black" style="background:#000000;width:32px;height:32px;border:none;margin-bottom:4px;"></button>
+      <button class="palette-color-btn" data-color="#ffffff" title="White" style="background:#ffffff;width:32px;height:32px;border:1px solid #ccc;margin-bottom:4px;"></button>
+    </div>
+  </div>
   <!-- action-mode-panel removed as requested -->
   <div id="map"></div>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.153.0/examples/js/loaders/FBXLoader.js"></script>
-  <script src="three-tank-loader.js"></script>
   <script>
     // Debug console logging
     function debugLog(msg) {
@@ -278,6 +318,7 @@
     // Freehand drawing setup
     var drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
+  var lastDrawnPath = null; // stores the most recent freehand polyline
     
     // Freehand drawing variables
     var isDrawing = false;
@@ -326,30 +367,27 @@
     map.on('mousemove', function(e) {
       if (!drawingMode || !isDrawing) return;
       currentPath.push(e.latlng);
-      
-      // Create temporary polyline for visual feedback
-      if (currentPath.length > 1) {
-        // Remove previous temporary line
-        map.eachLayer(function(layer) {
-          if (layer.options && layer.options.temp) {
-            map.removeLayer(layer);
-          }
-        });
-        
-        // Add new temporary line
-        L.polyline(currentPath, {
-          color: '#ff0000',
-          weight: 3,
-          opacity: 0.7,
-          temp: true
-        }).addTo(map);
-      }
+
+      // Remove previous temporary line
+      map.eachLayer(function(layer) {
+        if (layer.options && layer.options.temp) {
+          map.removeLayer(layer);
+        }
+      });
+
+      // Add new temporary line
+      L.polyline(currentPath, {
+        color: penColor, // <-- use penColor here
+        weight: 3,
+        opacity: 0.7,
+        temp: true
+      }).addTo(map);
     });
     
     map.on('mouseup', function(e) {
       if (!drawingMode || !isDrawing) return;
       isDrawing = false;
-      
+
       if (currentPath.length > 1) {
         // Remove temporary line
         map.eachLayer(function(layer) {
@@ -357,16 +395,17 @@
             map.removeLayer(layer);
           }
         });
-        
+
         // Add final polyline to drawn items
         var finalLine = L.polyline(currentPath, {
-          color: '#ff0000',
+          color: penColor, // <-- use penColor here
           weight: 3,
           opacity: 1
         });
         drawnItems.addLayer(finalLine);
+        lastDrawnPath = finalLine; // remember this path
       }
-      
+
       currentPath = [];
     });
     
@@ -421,6 +460,7 @@
           opacity: 1
         });
         drawnItems.addLayer(finalLine);
+        lastDrawnPath = finalLine; // remember this path
       }
       
       currentPath = [];
@@ -446,7 +486,9 @@
       clearAllDrawings();
       if (drawingMode) {
         stopFreehandDraw();
-        document.getElementById('draw-btn').textContent = 'Freehand Draw';
+        var img = document.getElementById('draw-btn-img');
+        img.src = 'image/IconDrawingG.jpg';
+        img.alt = 'Freehand Draw';
         document.getElementById('draw-btn').style.backgroundColor = '#95a5a6';
       }
     };
@@ -465,41 +507,492 @@
       popupAnchor: [0, -32]
     });
     var jetfighterIcon = L.icon({
-      iconUrl: 'image/IconJetFighterG.jpg',
+      iconUrl: 'image/IconJetFighterMap.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+    var helicopterIcon = L.icon({
+      iconUrl: 'image/IconHelicopterG.jpg',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+    var submarineIcon = L.icon({
+      iconUrl: 'image/IconSubmarineG.jpg',
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32]
     });
 
     // Place icon logic
-    var placeMode = null;
+    let placeMode = null;
+    let selectedBtn = null;
+  let activeAnimMarker = null; // marker used for path animation
+  let isAnimatingPath = false; // prevent concurrent animations
+  // RTS selection + move
+  let isSelectMode = false;
+  const allMarkers = [];
+  const selectedUnits = [];
+  let suppressNextMapClick = false;
+  let unitMoveJobs = [];
+  let unitsAnimating = false;
+  // Marquee selection state
+  let marqueeActive = false;
+  let marqueeMoved = false;
+  let marqueeStart = null;
+  let marqueeRect = null;
+
     function setPlaceMode(mode) {
+      // Deselect previous button
+      if (selectedBtn) {
+        if (selectedBtn.id === 'tank-btn') selectedBtn.querySelector('img').src = 'image/IconTankG.jpg';
+        if (selectedBtn.id === 'uav-btn') selectedBtn.querySelector('img').src = 'image/IconUAVG.jpg';
+        if (selectedBtn.id === 'jetfighter-btn') selectedBtn.querySelector('img').src = 'image/IconJetFighterG.jpg';
+        if (selectedBtn.id === 'helicopter-btn') selectedBtn.querySelector('img').src = 'image/IconHelicopterG.jpg';
+        if (selectedBtn.id === 'submarine-btn') selectedBtn.querySelector('img').src = 'image/IconSubmarineG.jpg';
+        selectedBtn.classList.remove('selected');
+      }
+      // Select new button
       placeMode = mode;
+      // Turning on place mode cancels select mode
+      if (isSelectMode) {
+        isSelectMode = false;
+        const selBtn = document.getElementById('select-mode-btn');
+        if (selBtn) selBtn.classList.remove('selected');
+        const selImg = document.getElementById('select-mode-btn-img');
+        if (selImg) selImg.src = 'image/IconSelectRectangleG.jpg';
+      }
       map.getContainer().style.cursor = 'crosshair';
+      if (mode === 'tank') {
+        selectedBtn = document.getElementById('tank-btn');
+        selectedBtn.querySelector('img').src = 'image/IconTankL.jpg';
+      } else if (mode === 'uav') {
+        selectedBtn = document.getElementById('uav-btn');
+        selectedBtn.querySelector('img').src = 'image/IconUAVL.jpg';
+      } else if (mode === 'jetfighter') {
+        selectedBtn = document.getElementById('jetfighter-btn');
+        selectedBtn.querySelector('img').src = 'image/IconJetFighterL.jpg';
+      } else if (mode === 'helicopter') {
+        selectedBtn = document.getElementById('helicopter-btn');
+        selectedBtn.querySelector('img').src = 'image/IconHelicopterL.jpg';
+      } else if (mode === 'submarine') {
+        selectedBtn = document.getElementById('submarine-btn');
+        selectedBtn.querySelector('img').src = 'image/IconSubmarineL.jpg';
+      }
+      selectedBtn.classList.add('selected');
     }
+
     function clearPlaceMode() {
+      if (selectedBtn) {
+        if (selectedBtn.id === 'tank-btn') selectedBtn.querySelector('img').src = 'image/IconTankG.jpg';
+        if (selectedBtn.id === 'uav-btn') selectedBtn.querySelector('img').src = 'image/IconUAVG.jpg';
+        if (selectedBtn.id === 'jetfighter-btn') selectedBtn.querySelector('img').src = 'image/IconJetFighterG.jpg';
+        if (selectedBtn.id === 'helicopter-btn') selectedBtn.querySelector('img').src = 'image/IconHelicopterG.jpg';
+        if (selectedBtn.id === 'submarine-btn') selectedBtn.querySelector('img').src = 'image/IconSubmarineG.jpg';
+        selectedBtn.classList.remove('selected');
+        selectedBtn = null;
+      }
       placeMode = null;
       map.getContainer().style.cursor = '';
     }
-  document.getElementById('tank-btn').onclick = function() { setPlaceMode('tank'); };
-  document.getElementById('uav-btn').onclick = function() { setPlaceMode('uav'); };
-  document.getElementById('jetfighter-btn').onclick = function() { setPlaceMode('jetfighter'); };
+
+    document.getElementById('tank-btn').onclick = function() {
+      if (placeMode === 'tank') {
+        clearPlaceMode();
+      } else {
+        setPlaceMode('tank');
+      }
+    };
+    document.getElementById('uav-btn').onclick = function() {
+      if (placeMode === 'uav') {
+        clearPlaceMode();
+      } else {
+        setPlaceMode('uav');
+      }
+    };
+    document.getElementById('jetfighter-btn').onclick = function() {
+      if (placeMode === 'jetfighter') {
+        clearPlaceMode();
+      } else {
+        setPlaceMode('jetfighter');
+      }
+    };
+    document.getElementById('helicopter-btn').onclick = function() {
+      if (placeMode === 'helicopter') {
+        clearPlaceMode();
+      } else {
+        setPlaceMode('helicopter');
+      }
+    };
+    document.getElementById('submarine-btn').onclick = function() {
+      if (placeMode === 'submarine') {
+        clearPlaceMode();
+      } else {
+        setPlaceMode('submarine');
+      }
+    };
 
     map.on('click', function(e) {
       if (!placeMode) return;
-      var icon;
+      let icon;
       if (placeMode === 'tank') icon = tankIcon;
       if (placeMode === 'uav') icon = uavIcon;
       if (placeMode === 'jetfighter') icon = jetfighterIcon;
+      if (placeMode === 'helicopter') icon = helicopterIcon;
+      if (placeMode === 'submarine') icon = submarineIcon;
       if (icon) {
-        var marker = L.marker(e.latlng, {icon: icon, draggable: true}).addTo(map);
-        marker.on('dragend', function(ev) {
-          var newPos = ev.target.getLatLng();
-          // Optionally, you can show the new position or update data here
+        const m = L.marker(e.latlng, {icon: icon, draggable: true}).addTo(map);
+        m.unitType = placeMode;
+        m.isSelected = false;
+        allMarkers.push(m);
+        // Click to toggle selection when in select mode
+        m.on('click', function(ev) {
+          if (!isSelectMode) return;
+          toggleUnitSelection(m);
+          suppressNextMapClick = true;
         });
+        // Jetfighter rotation follows drag direction
+        if (m.unitType === 'jetfighter') {
+          m.on('dragstart', function() {
+            m._lastDragPoint = map.latLngToLayerPoint(m.getLatLng());
+          });
+          m.on('drag', function() {
+            if (!m._icon) return;
+            const prev = m._lastDragPoint;
+            const curr = map.latLngToLayerPoint(m.getLatLng());
+            if (prev && (curr.x !== prev.x || curr.y !== prev.y)) {
+              const dx = curr.x - prev.x;
+              const dy = curr.y - prev.y;
+              const angleRad = Math.atan2(-dy, dx); // invert Y for screen coords
+              const angleDeg = angleRad * 180 / Math.PI;
+              const tStr = m._icon.style.transform || '';
+              const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
+              m._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
+              m._icon.style.transformOrigin = '16px 16px';
+              m._lastDragPoint = curr;
+            }
+          });
+          m.on('dragend', function() {
+            if (!m._icon) return;
+            const prev = m._lastDragPoint;
+            const curr = map.latLngToLayerPoint(m.getLatLng());
+            if (prev && (curr.x !== prev.x || curr.y !== prev.y)) {
+              const dx = curr.x - prev.x;
+              const dy = curr.y - prev.y;
+              const angleRad = Math.atan2(-dy, dx);
+              const angleDeg = angleRad * 180 / Math.PI;
+              const tStr = m._icon.style.transform || '';
+              const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
+              m._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
+              m._icon.style.transformOrigin = '16px 16px';
+            }
+            m._lastDragPoint = null;
+          });
+        }
+        // Do NOT clear placeMode here, so user can keep spawning icons
       }
-      clearPlaceMode();
     });
+
+    function toggleUnitSelection(marker) {
+      marker.isSelected = !marker.isSelected;
+      if (marker._icon) {
+        if (marker.isSelected) marker._icon.classList.add('unit-selected');
+        else marker._icon.classList.remove('unit-selected');
+      }
+      const idx = selectedUnits.indexOf(marker);
+      if (marker.isSelected && idx === -1) selectedUnits.push(marker);
+      if (!marker.isSelected && idx !== -1) selectedUnits.splice(idx, 1);
+    }
+
+    // Select mode toggle
+    document.getElementById('select-mode-btn').onclick = function() {
+      isSelectMode = !isSelectMode;
+      this.classList.toggle('selected', isSelectMode);
+      if (isSelectMode) {
+        const selImg = document.getElementById('select-mode-btn-img');
+        if (selImg) selImg.src = 'image/IconSelectRectangleL.jpg';
+        // Ensure other modes don't interfere
+        clearPlaceMode();
+        if (measuring) {
+          stopMeasuring();
+          const img = document.getElementById('measure-btn-img');
+          if (img) img.src = 'image/IconRulerG.jpg';
+          const btn = document.getElementById('measure-btn');
+          if (btn) btn.style.backgroundColor = '#95a5a6';
+        }
+        // Exit drawing mode if active
+        if (typeof drawingMode !== 'undefined' && drawingMode) {
+          stopFreehandDraw();
+          const drawImg = document.getElementById('draw-btn-img');
+          if (drawImg) drawImg.src = 'image/IconDrawingG.jpg';
+          const drawBtn = document.getElementById('draw-btn');
+          if (drawBtn) drawBtn.style.backgroundColor = '#95a5a6';
+          const palettePanel = document.getElementById('color-palette-panel');
+          if (palettePanel) palettePanel.style.display = 'none';
+        }
+        // Set a clear crosshair cursor to indicate selection
+        map.getContainer().style.cursor = 'crosshair';
+      } else {
+        const selImg = document.getElementById('select-mode-btn-img');
+        if (selImg) selImg.src = 'image/IconSelectRectangleG.jpg';
+        map.getContainer().style.cursor = '';
+      }
+    };
+
+    // Issue move command on map click in select mode (when not clicking a marker)
+    map.on('click', function(e) {
+      if (!isSelectMode) return;
+      if (suppressNextMapClick) { suppressNextMapClick = false; return; }
+      if (selectedUnits.length === 0) return;
+      moveSelectedUnitsTo(e.latlng);
+    });
+
+    // Marquee selection handlers
+    map.on('mousedown', function(e) {
+      if (!isSelectMode) return;
+      if (e.originalEvent && e.originalEvent.button !== 0) return; // left button only
+      marqueeActive = true;
+      marqueeMoved = false;
+      marqueeStart = e.latlng;
+      // Disable map dragging while drawing rectangle
+      map.dragging.disable();
+      // Create zero-area rectangle
+      marqueeRect = L.rectangle([marqueeStart, marqueeStart], {
+        color: '#00aaff',
+        weight: 2,
+        dashArray: '6,4',
+        fillColor: '#00aaff',
+        fillOpacity: 0.1,
+        interactive: false
+      }).addTo(map);
+    });
+
+    map.on('mousemove', function(e) {
+      if (!isSelectMode || !marqueeActive || !marqueeRect) return;
+      const p0 = map.latLngToContainerPoint(marqueeStart);
+      const p1 = map.latLngToContainerPoint(e.latlng);
+      const dx = Math.abs(p1.x - p0.x);
+      const dy = Math.abs(p1.y - p0.y);
+      if (dx + dy > 5) marqueeMoved = true; // threshold to count as drag
+      // Update rectangle bounds
+      const bounds = L.latLngBounds(marqueeStart, e.latlng);
+      marqueeRect.setBounds(bounds);
+    });
+
+    map.on('mouseup', function(e) {
+      if (!isSelectMode || !marqueeActive) return;
+      // Re-enable map dragging
+      map.dragging.enable();
+      // If dragged, select units within rectangle
+      if (marqueeMoved && marqueeRect) {
+        const bounds = marqueeRect.getBounds();
+        // Replace current selection with units inside bounds
+        // Clear previous selection
+        while (selectedUnits.length) {
+          const m = selectedUnits.pop();
+          m.isSelected = false;
+          if (m._icon) m._icon.classList.remove('unit-selected');
+        }
+        allMarkers.forEach(m => {
+          if (bounds.contains(m.getLatLng())) {
+            m.isSelected = true;
+            if (m._icon) m._icon.classList.add('unit-selected');
+            selectedUnits.push(m);
+          }
+        });
+        // Prevent the subsequent click from issuing a move order
+        suppressNextMapClick = true;
+      }
+      // Clean up rectangle
+      if (marqueeRect) { map.removeLayer(marqueeRect); marqueeRect = null; }
+      marqueeActive = false;
+      marqueeMoved = false;
+      marqueeStart = null;
+    });
+
+    // Geodesic destination from center by distance (m) and bearing (deg)
+    function destinationPoint(center, distance, bearingDeg) {
+      const R = 6371000; // meters
+      const br = bearingDeg * Math.PI / 180;
+      const lat1 = center.lat * Math.PI / 180;
+      const lon1 = center.lng * Math.PI / 180;
+      const dr = distance / R;
+      const sinLat1 = Math.sin(lat1), cosLat1 = Math.cos(lat1);
+      const sinDr = Math.sin(dr), cosDr = Math.cos(dr);
+      const sinLat2 = sinLat1 * cosDr + cosLat1 * sinDr * Math.cos(br);
+      const lat2 = Math.asin(sinLat2);
+      const y = Math.sin(br) * sinDr * cosLat1;
+      const x = cosDr - sinLat1 * sinLat2;
+      const lon2 = lon1 + Math.atan2(y, x);
+      return L.latLng(lat2 * 180 / Math.PI, ((lon2 * 180 / Math.PI + 540) % 360) - 180);
+    }
+
+    function moveSelectedUnitsTo(destLatLng) {
+      const DURATION_MS = 3000; // complete move within 3 seconds
+      unitMoveJobs = [];
+      const now = performance.now();
+
+      const n = selectedUnits.length;
+      const targets = [];
+      if (n === 1) {
+        targets.push(destLatLng);
+      } else {
+        const baseSpacing = 120; // meters between rings
+        let remaining = n;
+        let ring = 1;
+        while (remaining > 0) {
+          const capacity = 6 * ring; // 6, 12, 18, ...
+          const onRing = Math.min(remaining, capacity);
+          for (let j = 0; j < onRing; j++) {
+            const angle = (360 / onRing) * j; // degrees
+            targets.push(destinationPoint(destLatLng, baseSpacing * ring, angle));
+          }
+          remaining -= onRing;
+          ring++;
+        }
+      }
+
+      // Assign targets in order of selection
+      selectedUnits.forEach((m, i) => {
+        const target = targets[Math.min(i, targets.length - 1)];
+        const from = m.getLatLng();
+        const dist = map.distance(from, target);
+        const duration = DURATION_MS; // constant duration for all
+        unitMoveJobs.push({ marker: m, from, to: target, dist, start: now, duration });
+      });
+      if (!unitsAnimating) {
+        unitsAnimLoop();
+      }
+    }
+
+    function unitsAnimLoop() {
+      unitsAnimating = true;
+      const now = performance.now();
+      let remaining = 0;
+      unitMoveJobs.forEach(job => {
+        const t = job.duration > 0 ? Math.min(1, (now - job.start) / job.duration) : 1;
+        const lat = job.from.lat + (job.to.lat - job.from.lat) * t;
+        const lng = job.from.lng + (job.to.lng - job.from.lng) * t;
+        const a = job.from; const b = job.to;
+        job.marker.setLatLng([lat, lng]);
+        if (job.marker.unitType === 'jetfighter' && job.marker._icon) {
+          const angleRad = Math.atan2(b.lng - a.lng, b.lat - a.lat);
+          const angleDeg = angleRad * 180 / Math.PI;
+          const tStr = job.marker._icon.style.transform || '';
+          const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
+          job.marker._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
+          job.marker._icon.style.transformOrigin = '16px 16px';
+        }
+        if (t < 1) remaining++;
+      });
+      if (remaining > 0) {
+        requestAnimationFrame(unitsAnimLoop);
+      } else {
+        unitsAnimating = false;
+      }
+    }
+
+    // Animate the selected icon type along the last drawn path
+    function animateAlongPath() {
+      if (isAnimatingPath) return; // already running
+      if (!placeMode) {
+        alert('Select an icon (tank/uav/jetfighter/helicopter/submarine) first.');
+        return;
+      }
+      if (!lastDrawnPath) {
+        alert('Draw a path first using the pen tool.');
+        return;
+      }
+      const pathLatLngs = lastDrawnPath.getLatLngs();
+      if (!pathLatLngs || pathLatLngs.length < 2) {
+        alert('Path is too short to animate.');
+        return;
+      }
+      let icon = null;
+      if (placeMode === 'tank') icon = tankIcon;
+      if (placeMode === 'uav') icon = uavIcon;
+      if (placeMode === 'jetfighter') icon = jetfighterIcon;
+      if (placeMode === 'helicopter') icon = helicopterIcon;
+      if (placeMode === 'submarine') icon = submarineIcon;
+      if (!icon) return;
+
+      if (activeAnimMarker) {
+        map.removeLayer(activeAnimMarker);
+        activeAnimMarker = null;
+      }
+
+      activeAnimMarker = L.marker(pathLatLngs[0], {icon: icon, draggable: false}).addTo(map);
+
+      // Build segment distances and total length
+      const segDist = [];
+      let total = 0;
+      for (let i = 1; i < pathLatLngs.length; i++) {
+        const d = map.distance(pathLatLngs[i-1], pathLatLngs[i]);
+        segDist.push(d);
+        total += d;
+      }
+      if (total === 0) return;
+
+  const speed = 1500; // meters per second (one-way, no loop)
+      const duration = total / speed * 1000; // ms
+      const startTime = performance.now();
+  isAnimatingPath = true;
+  const animateBtn = document.getElementById('animate-path-btn');
+  if (animateBtn) animateBtn.disabled = true;
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function step(now) {
+        let elapsed = now - startTime;
+        if (elapsed < 0) elapsed = 0;
+        const t = Math.min(1, elapsed / duration);
+        const targetDist = t * total;
+
+        // Find segment for targetDist
+        let acc = 0;
+        let segIndex = 0;
+        while (segIndex < segDist.length && acc + segDist[segIndex] < targetDist) {
+          acc += segDist[segIndex];
+          segIndex++;
+        }
+        if (segIndex >= segDist.length) {
+          activeAnimMarker.setLatLng(pathLatLngs[pathLatLngs.length - 1]);
+          isAnimatingPath = false;
+          if (animateBtn) animateBtn.disabled = false;
+          return; // end (one go only)
+        }
+        const segLen = segDist[segIndex];
+        const segT = segLen > 0 ? (targetDist - acc) / segLen : 0;
+        const a = pathLatLngs[segIndex];
+        const b = pathLatLngs[segIndex + 1];
+        const lat = lerp(a.lat, b.lat, segT);
+        const lng = lerp(a.lng, b.lng, segT);
+        const pos = L.latLng(lat, lng);
+        activeAnimMarker.setLatLng(pos);
+
+        // Optional: rotate for jetfighter to face movement direction
+        if (placeMode === 'jetfighter' && activeAnimMarker._icon) {
+          const angleRad = Math.atan2(b.lng - a.lng, b.lat - a.lat);
+          const angleDeg = angleRad * 180 / Math.PI;
+          const tStr = activeAnimMarker._icon.style.transform || '';
+          const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
+          activeAnimMarker._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
+          activeAnimMarker._icon.style.transformOrigin = '16px 16px';
+        }
+
+        if (t < 1) requestAnimationFrame(step);
+        else {
+          isAnimatingPath = false;
+          if (animateBtn) animateBtn.disabled = false;
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    document.getElementById('animate-path-btn').onclick = animateAlongPath;
 
     // Memorize and go to location logic
     // Load memorized locations from localStorage
@@ -785,6 +1278,24 @@
 
     // Initialize button appearance
     updateLocationButtons();
+
+    // Show/hide palette when pen is activated
+    document.getElementById('draw-btn').addEventListener('click', function() {
+      var panel = document.getElementById('color-palette-panel');
+      panel.style.display = drawingMode ? 'block' : 'none';
+    });
+
+    // Pen color selection logic
+    var penColor = "#ff0000"; // Default to red
+    document.querySelectorAll('.palette-color-btn').forEach(function(btn) {
+      btn.onclick = function() {
+        penColor = btn.getAttribute('data-color');
+        document.querySelectorAll('.palette-color-btn').forEach(b => b.style.outline = '');
+        btn.style.outline = '2px solid #333';
+      };
+    });
+
+    // penColor is applied in mouse/touch drawing handlers above
   </script>
 </body>
 </html>
