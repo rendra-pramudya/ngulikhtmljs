@@ -255,6 +255,9 @@
       <button id="submarine-btn" style="padding:0;border:none;background:none;">
         <img src="image/IconSubmarineG.jpg" alt="Submarine Icon" style="width:32px;height:32px;vertical-align:middle;">
       </button>
+      <button id="battleship-btn" style="padding:0;border:none;background:none;">
+        <img src="image/IconBattleshipG.jpg" alt="Battleship Icon" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
       <button id="select-mode-btn" title="Select units" style="padding:0;border:none;background:none;width:32px;height:32px;line-height:32px;text-align:center;">
         <img id="select-mode-btn-img" src="image/IconSelectRectangleG.jpg" alt="Select Units" style="width:32px;height:32px;vertical-align:middle;">
       </button>
@@ -495,13 +498,13 @@
     
     // Icon definitions
     var tankIcon = L.icon({
-      iconUrl: 'image/IconTankG.jpg',
+      iconUrl: 'image/IconTankMap.png',
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32]
     });
     var uavIcon = L.icon({
-      iconUrl: 'image/IconUAVG.jpg',
+      iconUrl: 'image/IconUAVMap.png',
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32]
@@ -520,6 +523,12 @@
     });
     var submarineIcon = L.icon({
       iconUrl: 'image/IconSubmarineG.jpg',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+    var battleshipIcon = L.icon({
+      iconUrl: 'image/IconBattleshipMap.png',
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32]
@@ -543,6 +552,45 @@
   let marqueeStart = null;
   let marqueeRect = null;
 
+    // Attach drag handlers so marker rotates following drag direction
+    function attachDirectionalDrag(m) {
+      m.on('dragstart', function() {
+        m._lastDragPoint = map.latLngToLayerPoint(m.getLatLng());
+      });
+      m.on('drag', function() {
+        if (!m._icon) return;
+        const prev = m._lastDragPoint;
+        const curr = map.latLngToLayerPoint(m.getLatLng());
+        if (prev && (curr.x !== prev.x || curr.y !== prev.y)) {
+          const dx = curr.x - prev.x;
+          const dy = curr.y - prev.y;
+          const angleRad = Math.atan2(-dy, dx); // invert Y for screen coords
+          const angleDeg = angleRad * 180 / Math.PI;
+          const tStr = m._icon.style.transform || '';
+          const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
+          m._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
+          m._icon.style.transformOrigin = '16px 16px';
+          m._lastDragPoint = curr;
+        }
+      });
+      m.on('dragend', function() {
+        if (!m._icon) return;
+        const prev = m._lastDragPoint;
+        const curr = map.latLngToLayerPoint(m.getLatLng());
+        if (prev && (curr.x !== prev.x || curr.y !== prev.y)) {
+          const dx = curr.x - prev.x;
+          const dy = curr.y - prev.y;
+          const angleRad = Math.atan2(-dy, dx);
+          const angleDeg = angleRad * 180 / Math.PI;
+          const tStr = m._icon.style.transform || '';
+          const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
+          m._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
+          m._icon.style.transformOrigin = '16px 16px';
+        }
+        m._lastDragPoint = null;
+      });
+    }
+
     function setPlaceMode(mode) {
       // Deselect previous button
       if (selectedBtn) {
@@ -551,6 +599,7 @@
         if (selectedBtn.id === 'jetfighter-btn') selectedBtn.querySelector('img').src = 'image/IconJetFighterG.jpg';
         if (selectedBtn.id === 'helicopter-btn') selectedBtn.querySelector('img').src = 'image/IconHelicopterG.jpg';
         if (selectedBtn.id === 'submarine-btn') selectedBtn.querySelector('img').src = 'image/IconSubmarineG.jpg';
+        if (selectedBtn.id === 'battleship-btn') selectedBtn.querySelector('img').src = 'image/IconBattleshipG.jpg';
         selectedBtn.classList.remove('selected');
       }
       // Select new button
@@ -579,6 +628,9 @@
       } else if (mode === 'submarine') {
         selectedBtn = document.getElementById('submarine-btn');
         selectedBtn.querySelector('img').src = 'image/IconSubmarineL.jpg';
+      } else if (mode === 'battleship') {
+        selectedBtn = document.getElementById('battleship-btn');
+        selectedBtn.querySelector('img').src = 'image/IconBattleshipL.jpg';
       }
       selectedBtn.classList.add('selected');
     }
@@ -590,6 +642,7 @@
         if (selectedBtn.id === 'jetfighter-btn') selectedBtn.querySelector('img').src = 'image/IconJetFighterG.jpg';
         if (selectedBtn.id === 'helicopter-btn') selectedBtn.querySelector('img').src = 'image/IconHelicopterG.jpg';
         if (selectedBtn.id === 'submarine-btn') selectedBtn.querySelector('img').src = 'image/IconSubmarineG.jpg';
+        if (selectedBtn.id === 'battleship-btn') selectedBtn.querySelector('img').src = 'image/IconBattleshipG.jpg';
         selectedBtn.classList.remove('selected');
         selectedBtn = null;
       }
@@ -632,6 +685,13 @@
         setPlaceMode('submarine');
       }
     };
+    document.getElementById('battleship-btn').onclick = function() {
+      if (placeMode === 'battleship') {
+        clearPlaceMode();
+      } else {
+        setPlaceMode('battleship');
+      }
+    };
 
     map.on('click', function(e) {
       if (!placeMode) return;
@@ -641,6 +701,7 @@
       if (placeMode === 'jetfighter') icon = jetfighterIcon;
       if (placeMode === 'helicopter') icon = helicopterIcon;
       if (placeMode === 'submarine') icon = submarineIcon;
+  if (placeMode === 'battleship') icon = battleshipIcon;
       if (icon) {
         const m = L.marker(e.latlng, {icon: icon, draggable: true}).addTo(map);
         m.unitType = placeMode;
@@ -652,43 +713,9 @@
           toggleUnitSelection(m);
           suppressNextMapClick = true;
         });
-        // Jetfighter rotation follows drag direction
-        if (m.unitType === 'jetfighter') {
-          m.on('dragstart', function() {
-            m._lastDragPoint = map.latLngToLayerPoint(m.getLatLng());
-          });
-          m.on('drag', function() {
-            if (!m._icon) return;
-            const prev = m._lastDragPoint;
-            const curr = map.latLngToLayerPoint(m.getLatLng());
-            if (prev && (curr.x !== prev.x || curr.y !== prev.y)) {
-              const dx = curr.x - prev.x;
-              const dy = curr.y - prev.y;
-              const angleRad = Math.atan2(-dy, dx); // invert Y for screen coords
-              const angleDeg = angleRad * 180 / Math.PI;
-              const tStr = m._icon.style.transform || '';
-              const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
-              m._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
-              m._icon.style.transformOrigin = '16px 16px';
-              m._lastDragPoint = curr;
-            }
-          });
-          m.on('dragend', function() {
-            if (!m._icon) return;
-            const prev = m._lastDragPoint;
-            const curr = map.latLngToLayerPoint(m.getLatLng());
-            if (prev && (curr.x !== prev.x || curr.y !== prev.y)) {
-              const dx = curr.x - prev.x;
-              const dy = curr.y - prev.y;
-              const angleRad = Math.atan2(-dy, dx);
-              const angleDeg = angleRad * 180 / Math.PI;
-              const tStr = m._icon.style.transform || '';
-              const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
-              m._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
-              m._icon.style.transformOrigin = '16px 16px';
-            }
-            m._lastDragPoint = null;
-          });
+        // Directional drag for applicable unit types
+        if (m.unitType === 'jetfighter' || m.unitType === 'tank' || m.unitType === 'uav' || m.unitType === 'submarine' || m.unitType === 'battleship') {
+          attachDirectionalDrag(m);
         }
         // Do NOT clear placeMode here, so user can keep spawning icons
       }
