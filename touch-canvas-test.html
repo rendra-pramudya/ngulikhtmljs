@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Touch Canvas Test (Paint-like)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #1e1e1e;
+      font-family: Arial, sans-serif;
+    }
+    #map {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+    #toolbar {
+      position: fixed;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.96);
+      padding: 8px 10px;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      z-index: 10;
+    }
+    .swatches {
+      display: flex;
+      gap: 6px;
+    }
+    .swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #333;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+    .swatch.selected {
+      border-color: #0078d4;
+      box-shadow: 0 0 0 2px rgba(0,120,212,0.35);
+    }
+    .sep { width: 1px; height: 28px; background: #ddd; margin: 0 4px; }
+    #widthLabel { font-size: 12px; color: #333; margin-left: 4px; }
+    #widthRange { width: 120px; }
+    button.tool {
+      height: 28px;
+      padding: 0 10px;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button.tool:active { transform: translateY(1px); }
+    #canvasWrap {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+    canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: transparent; /* show map underlay */
+      cursor: crosshair;
+      touch-action: none; /* consistent touch when drawing enabled */
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <div class="swatches" id="swatches"></div>
+    <div class="sep"></div>
+    <label id="widthLabel">Width</label>
+    <input id="widthRange" type="range" min="1" max="40" value="4" />
+    <div class="sep"></div>
+    <button id="undoBtn" class="tool">Undo</button>
+    <button id="clearBtn" class="tool">Clear</button>
+    <button id="importBtn" class="tool" title="Import from URL hash or clipboard">Import</button>
+    <div class="sep"></div>
+    <button id="moveBtn" class="tool" title="Toggle map movement">
+      <img id="moveBtnImg" src="image/IconMoveG.jpg" alt="Move" style="width:20px;height:20px;vertical-align:middle;" />
+    </button>
+  </div>
+  <div id="map"></div>
+  <div id="canvasWrap">
+    <canvas id="draw"></canvas>
+  </div>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Initialize Leaflet map (satellite imagery)
+    const map = L.map('map', { zoomControl: true }).setView([0, 0], 2);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles © Esri'
+    }).addTo(map);
+
+    // Device pixel ratio scaling for crisp strokes
+    const canvas = document.getElementById('draw');
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+    // Geolocated strokes: store LatLngs and project for rendering
+    // stroke: { color, width, latlngs: [{lat,lng}] }
+    let strokes = [];
+    let currentStroke = null; // same structure
+    let activePointerId = null;
+    const activePointers = new Set();
+    const pointerPositions = new Map(); // id -> {x,y}
+    let multiGesture = null; // { startCentroid, lastCentroid, startDist, startZoom }
+    let gesturePassthrough = false; // legacy flag, no longer used for map gestures
+    let currentColor = '#ff0000';
+    let currentWidth = 4;
+    let moveEnabled = false; // when true: map can pan/zoom, drawing disabled
+
+    const COLORS = ['#ff0000','#00ff00','#0000ff','#ffff00','#ff00ff','#00ffff','#ffffff','#000000','#ffa500','#8a2be2'];
+
+    // Build color swatches
+    const swWrap = document.getElementById('swatches');
+    let swatchEls = [];
+    COLORS.forEach((c, i) => {
+      const el = document.createElement('div');
+      el.className = 'swatch' + (i === 0 ? ' selected' : '');
+      el.style.background = c;
+      el.title = c;
+      el.addEventListener('click', () => selectColor(c, el));
+      swWrap.appendChild(el);
+      swatchEls.push(el);
+    });
+    function selectColor(color, el) {
+      currentColor = color;
+      swatchEls.forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    // Width slider
+    const widthRange = document.getElementById('widthRange');
+    widthRange.addEventListener('input', () => {
+      currentWidth = parseInt(widthRange.value, 10) || 4;
+    });
+
+    // Undo and Clear
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      if (currentStroke) return; // do not undo mid-stroke
+      strokes.pop();
+      redrawAll();
+    });
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (currentStroke) return;
+      strokes = [];
+      clearCanvas();
+    });
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(rect.width * dpr));
+      const h = Math.max(1, Math.floor(rect.height * dpr));
+      canvas.width = w;
+      canvas.height = h;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.imageSmoothingEnabled = true;
+      redrawAll();
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function clientToLatLng(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      return map.containerPointToLatLng([x, y]);
+    }
+
+    function getCentroidAndDistance() {
+      if (pointerPositions.size < 2) return null;
+      const it = pointerPositions.values();
+      const p1 = it.next().value;
+      const p2 = it.next().value;
+      const cx = (p1.x + p2.x) / 2;
+      const cy = (p1.y + p2.y) / 2;
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      return { centroid: { x: cx, y: cy }, dist };
+    }
+
+    function clientToContainerXY(e) {
+      const rect = map.getContainer().getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function latLngToCanvasXY(latlng) {
+      const pt = map.latLngToContainerPoint(latlng);
+      return { x: pt.x * dpr, y: pt.y * dpr };
+    }
+
+    function drawSegment(stroke, fromIdx) {
+      const pts = stroke.latlngs;
+      if (!pts || pts.length < 2) return;
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width * dpr;
+      // Draw only last segment for efficiency
+      const i = Math.max(1, fromIdx);
+      const p0 = latLngToCanvasXY(pts[i-1]);
+      const p1 = latLngToCanvasXY(pts[i]);
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.stroke();
+    }
+
+    function redrawAll() {
+      clearCanvas();
+      for (const s of strokes) {
+        if (!s.latlngs || s.latlngs.length < 2) continue;
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.width * dpr;
+        const first = latLngToCanvasXY(s.latlngs[0]);
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < s.latlngs.length; i++) {
+          const p = latLngToCanvasXY(s.latlngs[i]);
+          ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Utilities: fit LatLng-like points into canvas coordinates
+    function drawPathFromLatLngs(latlngs, color = currentColor, width = currentWidth) {
+      if (!latlngs || latlngs.length < 2) return;
+      const stroke = { color, width, latlngs: latlngs.map(p => ({ lat: p.lat, lng: p.lng })) };
+      strokes.push(stroke);
+      redrawAll();
+    }
+
+    function tryImportFromHash() {
+      const hash = window.location.hash || '';
+      const m = hash.match(/#path=([^&]+)/);
+      if (!m) return false;
+      try {
+        const json = decodeURIComponent(m[1]);
+        const obj = JSON.parse(json);
+        if (obj && Array.isArray(obj.points) && obj.points.length >= 2) {
+          drawPathFromLatLngs(obj.points);
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    async function tryImportFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        const obj = JSON.parse(text);
+        if (obj && Array.isArray(obj.points) && obj.points.length >= 2) {
+          drawPathFromLatLngs(obj.points);
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    // Pointer events (mouse, touch, pen) with capture; gated by moveEnabled
+    function setCanvasInteractivity() {
+      // Drawing mode consumes single-pointer events; map mode lets events through
+      const pe = moveEnabled ? 'none' : 'auto';
+      canvas.style.pointerEvents = pe;
+      canvas.style.cursor = moveEnabled ? 'grab' : 'crosshair';
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      activePointers.add(e.pointerId);
+      pointerPositions.set(e.pointerId, clientToContainerXY(e));
+      if (moveEnabled) return; // map mode
+      // Enter two-finger gesture: pan/zoom the map manually
+      if (activePointers.size === 2) {
+        e.preventDefault();
+        if (currentStroke && activePointerId != null) {
+          try { canvas.releasePointerCapture(activePointerId); } catch (_) {}
+          activePointerId = null;
+          currentStroke = null;
+        }
+        const info = getCentroidAndDistance();
+        if (info) {
+          multiGesture = {
+            startCentroid: info.centroid,
+            lastCentroid: info.centroid,
+            startDist: info.dist,
+            startZoom: map.getZoom()
+          };
+        }
+        return;
+      }
+      if (activePointers.size > 2) return; // ignore extra pointers
+      if (activePointerId !== null) return; // already drawing
+      canvas.setPointerCapture(e.pointerId);
+      activePointerId = e.pointerId;
+      const ll = clientToLatLng(e);
+      currentStroke = { color: currentColor, width: currentWidth, latlngs: [ll] };
+      strokes.push(currentStroke);
+    }, { passive: false });
+
+    canvas.addEventListener('pointermove', (e) => {
+      pointerPositions.set(e.pointerId, clientToContainerXY(e));
+      if (moveEnabled) return;
+      // Handle two-finger pan/zoom
+      if (multiGesture && activePointers.size >= 2) {
+        const info = getCentroidAndDistance();
+        if (info) {
+          e.preventDefault();
+          // Pan by centroid delta
+          const dx = info.centroid.x - multiGesture.lastCentroid.x;
+          const dy = info.centroid.y - multiGesture.lastCentroid.y;
+          if (dx || dy) map.panBy([dx, dy], { animate: false });
+          // Pinch zoom
+          const scale = info.dist / (multiGesture.startDist || 1);
+          if (isFinite(scale) && scale > 0) {
+            const target = (multiGesture.startZoom || map.getZoom()) + Math.log2(scale);
+            const minZ = typeof map.getMinZoom === 'function' ? (map.getMinZoom() ?? 0) : 0;
+            const maxZ = typeof map.getMaxZoom === 'function' ? (map.getMaxZoom() ?? 19) : 19;
+            const newZoom = Math.max(minZ, Math.min(maxZ, target));
+            const centerLL = map.containerPointToLatLng([info.centroid.x, info.centroid.y]);
+            if (typeof map.setZoomAround === 'function') {
+              map.setZoomAround(centerLL, newZoom);
+            } else {
+              map.setView(centerLL, newZoom, { animate: false });
+            }
+          }
+          multiGesture.lastCentroid = info.centroid;
+        }
+        return;
+      }
+      // Single-pointer drawing
+      if (activePointerId !== e.pointerId || !currentStroke) return;
+      const ll = clientToLatLng(e);
+      const pts = currentStroke.latlngs;
+      const last = pts[pts.length - 1];
+      if (!last || last.lat !== ll.lat || last.lng !== ll.lng) {
+        pts.push(ll);
+        drawSegment(currentStroke, pts.length - 1);
+      }
+    }, { passive: false });
+
+    function endStroke(e) {
+      if (activePointerId === e.pointerId) {
+        try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+        activePointerId = null;
+        currentStroke = null;
+      }
+      activePointers.delete(e.pointerId);
+      pointerPositions.delete(e.pointerId);
+      if (activePointers.size < 2) {
+        multiGesture = null;
+      }
+    }
+
+    canvas.addEventListener('pointerup', endStroke, { passive: false });
+    canvas.addEventListener('pointercancel', endStroke, { passive: false });
+    // If the pointer leaves the canvas, end the stroke gracefully
+    canvas.addEventListener('pointerout', (e) => {
+      if (activePointerId === e.pointerId) endStroke(e);
+      else {
+        activePointers.delete(e.pointerId);
+        pointerPositions.delete(e.pointerId);
+        if (activePointers.size < 2) multiGesture = null;
+      }
+    }, { passive: false });
+
+    function setMoveEnabled(flag) {
+      moveEnabled = flag;
+      const img = document.getElementById('moveBtnImg');
+      // Icon legend: G = Move enabled (Go), L = Move locked (drawing)
+      if (img) img.src = moveEnabled ? 'image/IconMoveG.jpg' : 'image/IconMoveL.jpg';
+      if (moveEnabled) {
+        map.dragging.enable();
+        if (map.touchZoom) map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+      } else {
+        map.dragging.disable();
+        if (map.touchZoom) map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+      }
+      setCanvasInteractivity();
+    }
+
+    document.getElementById('moveBtn').addEventListener('click', () => {
+      setMoveEnabled(!moveEnabled);
+    });
+
+    // Mouse wheel zoom passthrough while drawing mode is active
+    canvas.addEventListener('wheel', (e) => {
+      if (moveEnabled) return; // map will receive wheel when canvas is inert
+      e.preventDefault();
+      const delta = e.deltaY;
+      if (!isFinite(delta) || delta === 0) return;
+      const pt = clientToContainerXY(e);
+      const centerLL = map.containerPointToLatLng([pt.x, pt.y]);
+      const cur = map.getZoom();
+      const step = (e.deltaMode === 1 /* line */) ? 0.25 : (e.deltaMode === 2 /* page */) ? 1 : 0.25;
+      const dir = delta < 0 ? 1 : -1;
+      const newZoom = cur + dir * step;
+      if (typeof map.setZoomAround === 'function') {
+        map.setZoomAround(centerLL, newZoom);
+      } else {
+        map.setView(centerLL, newZoom, { animate: false });
+      }
+    }, { passive: false });
+
+    // Initial setup
+    window.addEventListener('resize', resizeCanvas);
+    map.on('move zoom zoomend resize', redrawAll);
+    resizeCanvas();
+    setMoveEnabled(false); // default to drawing mode (Move disabled)
+
+    // Auto-import if path provided in URL hash
+    window.addEventListener('load', () => { tryImportFromHash(); });
+    document.getElementById('importBtn').addEventListener('click', async () => {
+      if (tryImportFromHash()) return;
+      await tryImportFromClipboard();
+    });
+  </script>
+</body>
+</html>
