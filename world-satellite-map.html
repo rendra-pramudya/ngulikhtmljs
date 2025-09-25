@@ -433,9 +433,11 @@
     // Remove Leaflet attribution control
     map.attributionControl.remove();
 
-    // Freehand drawing setup
-    var drawnItems = new L.FeatureGroup();
-    map.addLayer(drawnItems);
+  // Freehand drawing setup
+  var drawnItems = new L.FeatureGroup();
+  map.addLayer(drawnItems);
+  // Dedicated layer group for temporary preview lines during drawing
+  var tempDrawLayer = L.layerGroup().addTo(map);
   var lastDrawnPath = null; // stores the most recent freehand polyline
     var drawHistory = []; // stack of Leaflet layers added by freehand
     // Path-follow animation state
@@ -471,23 +473,19 @@
     // Freehand drawing variables
     var isDrawing = false;
     var currentPath = [];
-    var drawingMode = false;
+  var drawingMode = false;
+  // Track ghost mouse events after touch
+  var lastTouchTime = 0;
+  // Single temp polyline for freehand preview
+  var freehandTempLine = null;
   // Revert to separate mouse/touch handlers (no pointer unification)
 
     function finalizeFreehandPath() {
       if (currentPath.length > 1) {
-        // Remove temporary line
-        map.eachLayer(function(layer) {
-          if (layer.options && layer.options.temp) {
-            map.removeLayer(layer);
-          }
-        });
+        // Remove temporary preview line
+        if (freehandTempLine) { try { tempDrawLayer.removeLayer(freehandTempLine); } catch(_) {} freehandTempLine = null; }
         // Add final polyline to drawn items
-        var finalLine = L.polyline(currentPath, {
-          color: penColor,
-          weight: 3,
-          opacity: 1
-        });
+        var finalLine = L.polyline(currentPath, { color: penColor, weight: 3, opacity: 1 });
         drawnItems.addLayer(finalLine);
         lastDrawnPath = finalLine;
         drawHistory.push(finalLine);
@@ -504,26 +502,26 @@
     // Freehand drawing functions
     function startFreehandDraw() {
       drawingMode = true;
-      // Exit select mode to avoid conflicts with marquee handlers
-      if (typeof isSelectMode !== 'undefined' && isSelectMode) {
-        isSelectMode = false;
-        const selImg = document.getElementById('select-mode-btn-img');
-        if (selImg) selImg.src = 'image/IconSelectRectangleG.jpg';
-      }
-      map.getContainer().style.cursor = 'crosshair';
-      map.dragging.disable();
-      map.touchZoom && map.touchZoom.disable();
-      map.doubleClickZoom.disable();
-      map.scrollWheelZoom.disable();
-      map.boxZoom.disable();
-      map.keyboard.disable();
-      if (map.tap) map.tap.disable();
-  // Prevent browser-native touch gestures while drawing
-  if (map && map._container) { try { map._container.style.touchAction = 'none'; } catch(_){} }
-      // Show color palette when drawing starts
-      const palettePanelStart = document.getElementById('color-palette-panel');
-      if (palettePanelStart) palettePanelStart.style.display = 'block';
-      try { updateMapLockByTools(); } catch(_) {}
+        // Exit select mode to avoid conflicts with marquee handlers
+        if (typeof isSelectMode !== 'undefined' && isSelectMode) {
+          isSelectMode = false;
+          const selImg = document.getElementById('select-mode-btn-img');
+          if (selImg) selImg.src = 'image/IconSelectRectangleG.jpg';
+        }
+        map.getContainer().style.cursor = 'crosshair';
+        map.dragging.disable();
+        map.touchZoom && map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        if (map.tap) map.tap.disable();
+        // Prevent browser-native touch gestures while drawing
+        if (map && map._container) { try { map._container.style.touchAction = 'none'; } catch(_){} }
+        // Show color palette when drawing starts
+        const palettePanelStart = document.getElementById('color-palette-panel');
+        if (palettePanelStart) palettePanelStart.style.display = 'block';
+        try { updateMapLockByTools(); } catch(_) {}
     }
     
     function stopFreehandDraw() {
@@ -545,6 +543,7 @@
     
     function clearAllDrawings() {
       drawnItems.clearLayers();
+      try { tempDrawLayer.clearLayers(); } catch(_) {}
       drawHistory = [];
       lastDrawnPath = null;
       var undoImg = document.getElementById('undo-btn-img');
@@ -572,6 +571,8 @@
     // Mouse event handlers for freehand drawing
     map.on('mousedown', function(e) {
       if (!drawingMode) return;
+      // Ignore synthetic mouse events shortly after touch
+      if (Date.now() - lastTouchTime < 500) return;
       if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
       isDrawing = true;
@@ -580,66 +581,35 @@
     
     map.on('mousemove', function(e) {
       if (!drawingMode || !isDrawing) return;
+      // Ignore synthetic mouse events shortly after touch
+      if (Date.now() - lastTouchTime < 500) return;
       if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
       currentPath.push(e.latlng);
-
-      // Remove previous temporary line
-      map.eachLayer(function(layer) {
-        if (layer.options && layer.options.temp) {
-          map.removeLayer(layer);
-        }
-      });
-
-      // Add new temporary line
-      L.polyline(currentPath, {
-        color: penColor,
-        weight: 3,
-        opacity: 0.7,
-        temp: true
-      }).addTo(map);
+      // Update or create the single freehand temp preview line
+      if (!freehandTempLine) {
+        freehandTempLine = L.polyline(currentPath, { color: penColor, weight: 3, opacity: 0.7, temp: true }).addTo(tempDrawLayer);
+      } else {
+        freehandTempLine.setLatLngs(currentPath);
+      }
     });
     
     map.on('mouseup', function(e) {
       if (!drawingMode || !isDrawing) return;
+      // Ignore synthetic mouse events shortly after touch
+      if (Date.now() - lastTouchTime < 500) return;
       if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
       isDrawing = false;
-
-      if (currentPath.length > 1) {
-        // Remove temporary line
-        map.eachLayer(function(layer) {
-          if (layer.options && layer.options.temp) {
-            map.removeLayer(layer);
-          }
-        });
-
-        // Add final polyline to drawn items
-        var finalLine = L.polyline(currentPath, {
-          color: penColor,
-          weight: 3,
-          opacity: 1
-        });
-        drawnItems.addLayer(finalLine);
-        lastDrawnPath = finalLine; // remember this path
-        drawHistory.push(finalLine);
-        var undoImg1 = document.getElementById('undo-btn-img');
-        if (undoImg1) undoImg1.style.opacity = '1';
-        // If units are selected, have them follow the drawn path
-        if (selectedUnits.length > 0) {
-          const pathLatLngs = lastDrawnPath.getLatLngs();
-          startPathMoveForMarkers(selectedUnits.slice(), pathLatLngs, 1500);
-        }
-      }
-
-      currentPath = [];
+      finalizeFreehandPath();
     });
     
     // Touch event handlers for mobile devices
     map.on('touchstart', function(e) {
       if (!drawingMode) return;
       if (!e.originalEvent) return;
-      try { e.originalEvent.preventDefault(); } catch(_){}
+      try { e.originalEvent.preventDefault(); } catch(_){ }
+      lastTouchTime = Date.now();
       const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
       if (!touch) return;
       const rect = map.getContainer().getBoundingClientRect();
@@ -651,7 +621,8 @@
     map.on('touchmove', function(e) {
       if (!drawingMode || !isDrawing) return;
       if (!e.originalEvent) return;
-      try { e.originalEvent.preventDefault(); } catch(_){}
+      try { e.originalEvent.preventDefault(); } catch(_){ }
+      lastTouchTime = Date.now();
       const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
       if (!touch) return;
       const rect = map.getContainer().getBoundingClientRect();
@@ -659,49 +630,35 @@
       currentPath.push(latlng);
       
       if (currentPath.length > 1) {
-        map.eachLayer(function(layer) {
-          if (layer.options && layer.options.temp) {
-            map.removeLayer(layer);
-          }
-        });
-        L.polyline(currentPath, {
-          color: penColor,
-          weight: 3,
-          opacity: 0.7,
-          temp: true
-        }).addTo(map);
+        if (!freehandTempLine) {
+          freehandTempLine = L.polyline(currentPath, { color: penColor, weight: 3, opacity: 0.7, temp: true }).addTo(tempDrawLayer);
+        } else {
+          freehandTempLine.setLatLngs(currentPath);
+        }
       }
     });
     
     map.on('touchend', function(e) {
       if (!drawingMode || !isDrawing) return;
       if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
+      lastTouchTime = Date.now();
       isDrawing = false;
-      
-      if (currentPath.length > 1) {
-        map.eachLayer(function(layer) {
-          if (layer.options && layer.options.temp) {
-            map.removeLayer(layer);
-          }
-        });
-        var finalLine = L.polyline(currentPath, {
-          color: penColor,
-          weight: 3,
-          opacity: 1
-        });
-        drawnItems.addLayer(finalLine);
-        lastDrawnPath = finalLine; // remember this path
-        drawHistory.push(finalLine);
-        var undoImg2 = document.getElementById('undo-btn-img');
-        if (undoImg2) undoImg2.style.opacity = '1';
-        if (selectedUnits.length > 0) {
-          const pathLatLngs = lastDrawnPath.getLatLngs();
-          startPathMoveForMarkers(selectedUnits.slice(), pathLatLngs, 1500);
-        }
-      }
-      
-      currentPath = [];
+      finalizeFreehandPath();
     });
+
+    // Finalize drawing if the touch/pointer is canceled by the OS (common on Windows)
+    (function(){
+      const container = map.getContainer();
+      function onCancel(ev){
+        try { ev.preventDefault(); } catch(_){}
+        if (!drawingMode || !isDrawing) return;
+        lastTouchTime = Date.now();
+        isDrawing = false;
+        finalizeFreehandPath();
+      }
+      try { container.addEventListener('touchcancel', onCancel, { passive: false }); } catch(_){}
+      try { container.addEventListener('pointercancel', onCancel, { passive: false }); } catch(_){}
+    })();
     
 
       function computePathMeta(latlngs) {
@@ -1412,8 +1369,8 @@
       map.boxZoom.disable();
       map.keyboard.disable();
       if (map.tap) map.tap.disable();
-  if (animDrawTempLine) { map.removeLayer(animDrawTempLine); animDrawTempLine = null; }
-  animDrawTempLine = L.polyline(animDrawPoints, { color: '#ffffff', weight: 3, opacity: 0.1, temp: true }).addTo(map);
+  if (animDrawTempLine) { try { tempDrawLayer.removeLayer(animDrawTempLine); } catch(_) {} animDrawTempLine = null; }
+  animDrawTempLine = L.polyline(animDrawPoints, { color: '#ffffff', weight: 3, opacity: 0.1, temp: true }).addTo(tempDrawLayer);
     });
 
     map.on('mousemove', function(e) {
@@ -1435,7 +1392,7 @@
   map.keyboard.enable();
   if (map.tap) map.tap.enable();
       // Remove the drawn path immediately (disappear)
-      if (animDrawTempLine) { map.removeLayer(animDrawTempLine); animDrawTempLine = null; }
+  if (animDrawTempLine) { try { tempDrawLayer.removeLayer(animDrawTempLine); } catch(_) {} animDrawTempLine = null; }
       const pts = animDrawPoints.slice();
       animDrawPoints = [];
       if (pts.length < 2) return;
