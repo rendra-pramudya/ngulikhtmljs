@@ -334,7 +334,7 @@
             const newZoom = Math.max(minZ, Math.min(maxZ, target));
             const centerLL = map.containerPointToLatLng([info.centroid.x, info.centroid.y]);
             if (typeof map.setZoomAround === 'function') {
-              map.setZoomAround(centerLL, newZoom);
+              map.setZoomAround(centerLL, newZoom, { animate: false });
             } else {
               map.setView(centerLL, newZoom, { animate: false });
             }
@@ -419,7 +419,7 @@
       const dir = delta < 0 ? 1 : -1;
       const newZoom = cur + dir * step;
       if (typeof map.setZoomAround === 'function') {
-        map.setZoomAround(centerLL, newZoom);
+        map.setZoomAround(centerLL, newZoom, { animate: false });
       } else {
         map.setView(centerLL, newZoom, { animate: false });
       }
