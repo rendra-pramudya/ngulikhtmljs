@@ -26,66 +26,6 @@
       top: 10px;
       background: rgba(255,255,255,0.9);
       padding: 10px;
-      border-radius: 0;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      font-family: Arial, sans-serif;
-      position: absolute;
-      z-index: 1000;
-      right: 400px;
-      top: 10px;
-      background-image: initial;
-      background-position-x: initial;
-      background-position-y: initial;
-      background-size: initial;
-      background-repeat: initial;
-      background-attachment: initial;
-      background-origin: initial;
-      background-clip: initial;
-      background-color: rgba(255, 255, 255, 0.9);
-      padding-top: 10px;
-      padding-right: 10px;
-      padding-bottom: 10px;
-      padding-left: 10px;
-      border-top-left-radius: 0px;
-      border-top-right-radius: 0px;
-      border-bottom-right-radius: 0px;
-      border-bottom-left-radius: 0px;
-      box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 10px;
-      font-family: Arial, sans-serif;
-      right: 10px;
-      width: 32px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .location-buttons {<!DOCTYPE html>
-<html lang="en">
-<head>
-  <style>
-  </style>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>World Satellite Map</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
-  <style>
-    #map {
-      height: 100vh;
-      width: 100vw;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      margin: 0;
-      padding: 0;
-    }
-    .control-panel {
-      position: absolute;
-      z-index: 1000;
-      right: 400px;
-      top: 10px;
-      background: rgba(255,255,255,0.9);
-      padding: 10px;
       
       margin: 0;
     }
@@ -852,16 +792,38 @@
       if (undoImg) undoImg.style.opacity = '0.5';
     };
 
-    // Undo last drawing
+    // Undo last action (drawing path or placed/animated unit)
     document.getElementById('undo-btn').onclick = function() {
       if (!drawHistory || drawHistory.length === 0) return;
       const last = drawHistory.pop();
-      try { drawnItems.removeLayer(last); } catch(_) {}
-      // Update lastDrawnPath to previous polyline if available
-      lastDrawnPath = null;
-      for (let i = drawHistory.length - 1; i >= 0; i--) {
-        const layer = drawHistory[i];
-        if (layer && typeof layer.getLatLngs === 'function') { lastDrawnPath = layer; break; }
+      if (!last) return;
+      // If it's a polyline (drawing)
+      if (typeof last.getLatLngs === 'function') {
+        try { drawnItems.removeLayer(last); } catch(_) { try { map.removeLayer(last); } catch(_) {} }
+        // Update lastDrawnPath to previous polyline if available
+        lastDrawnPath = null;
+        for (let i = drawHistory.length - 1; i >= 0; i--) {
+          const layer = drawHistory[i];
+          if (layer && typeof layer.getLatLngs === 'function') { lastDrawnPath = layer; break; }
+        }
+      } else {
+        // Assume it's a marker (placed unit or animated unit)
+        try { map.removeLayer(last); } catch(_) {}
+        // Remove from allMarkers
+        const idx = allMarkers.indexOf(last);
+        if (idx !== -1) allMarkers.splice(idx, 1);
+        // Remove from selectedUnits if present
+        const sidx = selectedUnits.indexOf(last);
+        if (sidx !== -1) selectedUnits.splice(sidx, 1);
+        // Remove any pending move/animation jobs for this marker
+        if (Array.isArray(unitMoveJobs)) {
+          unitMoveJobs = unitMoveJobs.filter(j => j && j.marker !== last);
+          if (unitMoveJobs.length === 0) { try { unitsAnimating = false; } catch(_){} }
+        }
+        if (Array.isArray(pathMoveJobs)) {
+          pathMoveJobs = pathMoveJobs.filter(j => j && j.marker !== last);
+          if (pathMoveJobs.length === 0) { try { pathAnimating = false; } catch(_){} }
+        }
       }
       // Dim undo if no more items
       const undoImg = document.getElementById('undo-btn-img');
@@ -1178,7 +1140,11 @@
         m.isSelected = false;
   m._headingDeg = 0;
   m.bindTooltip('<span class="heading-tip">0°</span>', {permanent: false, direction: 'top', sticky: true, opacity: 0.9, offset: [0, -12], className: 'heading-tooltip'});
-        allMarkers.push(m);
+  allMarkers.push(m);
+  // Add unit placement to undo history
+  drawHistory.push(m);
+  const undoImgP = document.getElementById('undo-btn-img');
+  if (undoImgP) undoImgP.style.opacity = '1';
         // Click to toggle selection when in select mode
         m.on('click', function(ev) {
           if (!isSelectMode) return;
@@ -1496,16 +1462,12 @@
       });
       // Drag rotation for supported units
       attachDirectionalDrag(animMarker);
-      allMarkers.push(animMarker);
-      animMarker.bindTooltip('<span class="heading-tip">0°</span>', {permanent: false, direction: 'top', sticky: true, opacity: 0.9, offset: [0, -12], className: 'heading-tooltip'});
-      animMarker.on('click', function(ev) {
-        if (!isSelectMode) return;
-        if (ev && ev.originalEvent && L && L.DomEvent) { try { L.DomEvent.stopPropagation(ev); } catch(_){} }
-        toggleUnitSelection(animMarker);
-        suppressNextMapClick = false;
-      });
-      attachDirectionalDrag(animMarker);
-      allMarkers.push(animMarker);
+  allMarkers.push(animMarker);
+  // Allow undo of the animated unit creation
+  drawHistory.push(animMarker);
+  const undoImgAnim = document.getElementById('undo-btn-img');
+  if (undoImgAnim) undoImgAnim.style.opacity = '1';
+      // (removed duplicate bind/click/drag/push)
       const segDist = [];
       let total = 0;
       for (let i = 1; i < pts.length; i++) {
