@@ -58,25 +58,35 @@
       flex-direction: column;
       align-items: center;
     }
-    .location-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 0px !important;
-      row-gap: 0px !important;
-      align-items: center;
-      margin-bottom: 0px;
-    }
-    .location-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 56px;
-      height: 56px;
+    .location-buttons {<!DOCTYPE html>
+<html lang="en">
+<head>
+  <style>
+  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Satellite Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+  <style>
+    #map {
+      height: 100vh;
+      width: 100vw;
+      margin: 0;
       padding: 0;
-      border: none;
-      border-radius: 0;
-      background: none;
-      cursor: pointer;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    .control-panel {
+      position: absolute;
+      z-index: 1000;
+      right: 400px;
+      top: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      
       margin: 0;
     }
     .map-btn-img {
@@ -146,11 +156,40 @@
       right: 10px;
       width: 92px;
     }
-    #map-panel {
-      top: 80px;
-      right: 10px;
-      width: 32px;
-    }
+      #map-panel {
+        top: 80px;
+        right: 10px;
+        width: 50px; /* widened panel to fit wider buttons */
+        padding: 0; /* ensure content fits exact width */
+      }
+      /* Make sure location buttons fit exactly inside the 32px panel */
+      #map-panel .location-buttons {
+        display: block;
+        flex-direction: column;
+        align-items: center;
+        gap: 40px;
+        margin: 0;
+        padding: 0;
+        align-items: center;
+        justify-content: center;
+        
+      }
+      #map-panel .location-btn {
+        width: 50px;  /* wider click target */
+        height: 50px; /* slightly taller for symmetry */
+        padding: 0;
+        border: none;
+        background: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #map-panel .map-btn-img,
+      #map-panel .map-btn-img img {
+        width: 32px;  /* keep the icon at 32px */
+        height: 32px;
+        display: block;
+      }
     #action-mode-panel {
       position: absolute;
       z-index: 1000;
@@ -232,10 +271,13 @@
       <button id="undo-btn" style="padding:0;border:none;background:none;">
         <img id="undo-btn-img" src="image/IconUndoG.jpg" alt="Undo" style="width:32px;height:32px;vertical-align:middle;opacity:0.5;">
       </button>
+      <button id="move-btn" style="padding:0;border:none;background:none;">
+        <img id="move-btn-img" src="image/IconMoveG.jpg" alt="Move" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
     </div>
   </div>
 
-  <div class="control-panel" id="tools-panel" style="top: 205px; right: 70px; width: 32px;">
+  <div class="control-panel" id="tools-panel" style="top: 235px; right: 70px; width: 32px;">
     <div class="location-buttons">
       <button id="measure-btn" style="padding:0;border:none;background:none;">
         <img id="measure-btn-img" src="image/IconRulerG.jpg" alt="Measure Distance" style="width:32px;height:32px;vertical-align:middle;">
@@ -261,16 +303,16 @@
       <button id="select-mode-btn" title="Select units" style="padding:0;border:none;background:none;width:32px;height:32px;line-height:32px;text-align:center;">
         <img id="select-mode-btn-img" src="image/IconSelectRectangleG.jpg" alt="Select Units" style="width:32px;height:32px;vertical-align:middle;">
       </button>
-      
+  
     </div>
   </div>
   <div class="control-panel" id="map-panel">
-    <div class="location-buttons">
-      <button class="location-btn" id="location-1"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-1" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-1">1</span></span></button>
-      <button class="location-btn" id="location-2"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-2" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-2">2</span></span></button>
-      <button class="location-btn" id="location-3"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-3" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-3">3</span></span></button>
-      <button class="location-btn" id="location-4"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-4" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-4">4</span></span></button>
-      <button class="location-btn" id="location-5"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-5" style="width:32px;height:32px;"><span class="map-btn-num" id="location-num-5">5</span></span></button>
+    <div class="location-buttons" >
+      <button class="location-btn" id="location-1"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-1" style="padding:0;border:none;width:32px;height:32px;"><span class="map-btn-num" id="location-num-1">1</span></span></button>
+      <button class="location-btn" id="location-2"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-2" style="padding:0;width:32px;height:32px;"><span class="map-btn-num" id="location-num-2">2</span></span></button>
+      <button class="location-btn" id="location-3"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-3" style="padding:0;width:32px;height:32px;"><span class="map-btn-num" id="location-num-3">3</span></span></button>
+      <button class="location-btn" id="location-4"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-4" style="padding:0;width:32px;height:32px;"><span class="map-btn-num" id="location-num-4">4</span></span></button>
+      <button class="location-btn" id="location-5"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-5" style="padding:0;width:32px;height:32px;"><span class="map-btn-num" id="location-num-5">5</span></span></button>
     </div>
   </div>
   <!-- Bottom-left toast container -->
@@ -316,6 +358,138 @@
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
     }).addTo(map);
 
+    // Simple Move toggle under Undo (icon-only state)
+    let moveActive = false;
+    const moveBtn = document.getElementById('move-btn');
+    const moveImg = document.getElementById('move-btn-img');
+    function deactivateMove() {
+      moveActive = false;
+      if (moveImg) moveImg.src = 'image/IconMoveG.jpg';
+    }
+
+    // Helper: determine if any tool (tools panel or drawing) is active
+    function isAnyToolActive() {
+      return !!placeMode || !!animDrawActive || !!isSelectMode || !!measuring || !!drawingMode;
+    }
+    // Helper: Only allow map movement when Move is active; otherwise lock interactions
+    function updateMapLockByTools() {
+      const shouldUnlock = !!moveActive;
+      try { applyMapLock(!shouldUnlock); } catch(_) {}
+    }
+
+    // Radio group helpers
+    function getActiveRadioTool() {
+      if (drawingMode) return 'draw';
+      if (moveActive) return 'move';
+      if (measuring) return 'measure';
+      if (isSelectMode) return 'select';
+      if (animDrawActive) return 'anim:' + (animDrawUnitType || '');
+      return null;
+    }
+
+    function deactivateAllRadioTools() {
+      // Stop drawing
+      if (drawingMode) {
+        try { stopFreehandDraw(); } catch(_) {}
+        const drawImg = document.getElementById('draw-btn-img');
+        if (drawImg) { drawImg.src = 'image/IconDrawingG.jpg'; drawImg.alt = 'Freehand Draw'; }
+        const drawBtn = document.getElementById('draw-btn');
+        if (drawBtn) drawBtn.style.backgroundColor = '#95a5a6';
+        const palettePanel = document.getElementById('color-palette-panel');
+        if (palettePanel) palettePanel.style.display = 'none';
+      }
+      // Stop measuring
+      if (measuring) {
+        try { stopMeasuring(); } catch(_) {}
+        const mImg = document.getElementById('measure-btn-img');
+        if (mImg) mImg.src = 'image/IconRulerG.jpg';
+        const mBtn = document.getElementById('measure-btn');
+        if (mBtn) mBtn.style.backgroundColor = '#95a5a6';
+      }
+      // Clear select
+      if (isSelectMode) {
+        isSelectMode = false;
+        const selBtn = document.getElementById('select-mode-btn');
+        if (selBtn) selBtn.classList.remove('selected');
+        const selImg = document.getElementById('select-mode-btn-img');
+        if (selImg) selImg.src = 'image/IconSelectRectangleG.jpg';
+        try { map.getContainer().style.cursor = ''; } catch(_) {}
+      }
+      // Clear anim-draw
+      if (animDrawActive) {
+        try { clearAnimDrawMode(); } catch(_) {}
+      } else {
+        // Ensure unit button visuals are reset if needed
+        try { if (typeof updateUnitButtonsVisual === 'function') updateUnitButtonsVisual(null); } catch(_) {}
+      }
+      // Clear placement (if any legacy placement used)
+      try { clearPlaceMode(); } catch(_) {}
+      // Move off
+      deactivateMove();
+      try { updateMapLockByTools(); } catch(_) {}
+    }
+
+    function setRadioTool(tool) {
+      const current = getActiveRadioTool();
+      if (current === tool) {
+        // Toggle off if already active
+        deactivateAllRadioTools();
+        return;
+      }
+      // Switch: deactivate others first
+      deactivateAllRadioTools();
+      switch (tool) {
+        case 'draw': {
+          startFreehandDraw();
+          const img = document.getElementById('draw-btn-img');
+          if (img) { img.src = 'image/IconDrawingL.jpg'; img.alt = 'Stop Drawing'; }
+          const btn = document.getElementById('draw-btn');
+          if (btn) btn.style.backgroundColor = '#e74c3c';
+          const palettePanel = document.getElementById('color-palette-panel');
+          if (palettePanel) palettePanel.style.display = 'block';
+          break;
+        }
+        case 'move': {
+          moveActive = true;
+          if (moveImg) moveImg.src = 'image/IconMoveL.jpg';
+          break;
+        }
+        case 'measure': {
+          startMeasuring();
+          const mImg = document.getElementById('measure-btn-img');
+          if (mImg) { mImg.src = 'image/IconRulerL.jpg'; mImg.alt = 'Stop Measuring'; }
+          const mBtn = document.getElementById('measure-btn');
+          if (mBtn) mBtn.style.backgroundColor = '#e67e22';
+          break;
+        }
+        case 'select': {
+          isSelectMode = true;
+          const selBtn = document.getElementById('select-mode-btn');
+          if (selBtn) selBtn.classList.add('selected');
+          const selImg = document.getElementById('select-mode-btn-img');
+          if (selImg) selImg.src = 'image/IconSelectRectangleL.jpg';
+          try { map.getContainer().style.cursor = 'crosshair'; } catch(_) {}
+          break;
+        }
+        case 'anim:tank':
+        case 'anim:uav':
+        case 'anim:jetfighter':
+        case 'anim:helicopter':
+        case 'anim:submarine':
+        case 'anim:battleship': {
+          const t = tool.split(':')[1];
+          setAnimDrawMode(t);
+          break;
+        }
+      }
+      try { updateMapLockByTools(); } catch(_) {}
+    }
+    if (moveBtn && moveImg) {
+      moveBtn.addEventListener('click', function() { setRadioTool('move'); });
+    }
+    // Initial policy: lock map until Move is turned on
+    try { updateMapLockByTools(); } catch(_) {}
+
     // Remove Leaflet attribution control
     map.attributionControl.remove();
 
@@ -358,6 +532,34 @@
     var isDrawing = false;
     var currentPath = [];
     var drawingMode = false;
+  // Revert to separate mouse/touch handlers (no pointer unification)
+
+    function finalizeFreehandPath() {
+      if (currentPath.length > 1) {
+        // Remove temporary line
+        map.eachLayer(function(layer) {
+          if (layer.options && layer.options.temp) {
+            map.removeLayer(layer);
+          }
+        });
+        // Add final polyline to drawn items
+        var finalLine = L.polyline(currentPath, {
+          color: penColor,
+          weight: 3,
+          opacity: 1
+        });
+        drawnItems.addLayer(finalLine);
+        lastDrawnPath = finalLine;
+        drawHistory.push(finalLine);
+        var undoImgPtr = document.getElementById('undo-btn-img');
+        if (undoImgPtr) undoImgPtr.style.opacity = '1';
+        if (selectedUnits.length > 0) {
+          const pathLatLngs = lastDrawnPath.getLatLngs();
+          startPathMoveForMarkers(selectedUnits.slice(), pathLatLngs, 1500);
+        }
+      }
+      currentPath = [];
+    }
     
     // Freehand drawing functions
     function startFreehandDraw() {
@@ -376,9 +578,12 @@
       map.boxZoom.disable();
       map.keyboard.disable();
       if (map.tap) map.tap.disable();
+  // Prevent browser-native touch gestures while drawing
+  if (map && map._container) { try { map._container.style.touchAction = 'none'; } catch(_){} }
       // Show color palette when drawing starts
       const palettePanelStart = document.getElementById('color-palette-panel');
       if (palettePanelStart) palettePanelStart.style.display = 'block';
+      try { updateMapLockByTools(); } catch(_) {}
     }
     
     function stopFreehandDraw() {
@@ -404,10 +609,10 @@
       lastDrawnPath = null;
       var undoImg = document.getElementById('undo-btn-img');
       if (undoImg) undoImg.style.opacity = '0.5';
-      if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
-      measureMarkers.forEach(m => map.removeLayer(m));
+      if (measureLine) { try { map.removeLayer(measureLine); } catch(_) {} measureLine = null; }
+      measureMarkers.forEach(m => { try { map.removeLayer(m); } catch(_) {} });
       measureMarkers = [];
-      if (measureTooltip) { map.removeLayer(measureTooltip); measureTooltip = null; }
+      if (measureTooltip) { try { map.removeLayer(measureTooltip); } catch(_) {} measureTooltip = null; }
       measurePoints = [];
       // Also clear all unit icons on the map
       while (selectedUnits.length) {
@@ -417,18 +622,17 @@
       }
       allMarkers.forEach(m => { try { map.removeLayer(m); } catch(_){} });
       allMarkers.length = 0;
-      
       // Stop any ongoing move/path jobs
       unitMoveJobs = [];
       unitsAnimating = false;
       pathMoveJobs = [];
       pathAnimating = false;
     }
-    
+
     // Mouse event handlers for freehand drawing
     map.on('mousedown', function(e) {
       if (!drawingMode) return;
-      if (e && e.originalEvent) { e.originalEvent.preventDefault(); }
+      if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
       isDrawing = true;
       currentPath = [e.latlng];
@@ -436,7 +640,7 @@
     
     map.on('mousemove', function(e) {
       if (!drawingMode || !isDrawing) return;
-      if (e && e.originalEvent) { e.originalEvent.preventDefault(); }
+      if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
       currentPath.push(e.latlng);
 
@@ -449,7 +653,7 @@
 
       // Add new temporary line
       L.polyline(currentPath, {
-        color: penColor, // <-- use penColor here
+        color: penColor,
         weight: 3,
         opacity: 0.7,
         temp: true
@@ -458,7 +662,7 @@
     
     map.on('mouseup', function(e) {
       if (!drawingMode || !isDrawing) return;
-      if (e && e.originalEvent) { e.originalEvent.preventDefault(); }
+      if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
       isDrawing = false;
 
@@ -472,20 +676,20 @@
 
         // Add final polyline to drawn items
         var finalLine = L.polyline(currentPath, {
-          color: penColor, // <-- use penColor here
+          color: penColor,
           weight: 3,
           opacity: 1
         });
-  drawnItems.addLayer(finalLine);
-  lastDrawnPath = finalLine; // remember this path
-  drawHistory.push(finalLine);
-  var undoImg1 = document.getElementById('undo-btn-img');
-  if (undoImg1) undoImg1.style.opacity = '1';
-          // If units are selected, have them follow the drawn path
-          if (selectedUnits.length > 0) {
-            const pathLatLngs = lastDrawnPath.getLatLngs();
-            startPathMoveForMarkers(selectedUnits.slice(), pathLatLngs, 1500);
-          }
+        drawnItems.addLayer(finalLine);
+        lastDrawnPath = finalLine; // remember this path
+        drawHistory.push(finalLine);
+        var undoImg1 = document.getElementById('undo-btn-img');
+        if (undoImg1) undoImg1.style.opacity = '1';
+        // If units are selected, have them follow the drawn path
+        if (selectedUnits.length > 0) {
+          const pathLatLngs = lastDrawnPath.getLatLngs();
+          startPathMoveForMarkers(selectedUnits.slice(), pathLatLngs, 1500);
+        }
       }
 
       currentPath = [];
@@ -494,18 +698,24 @@
     // Touch event handlers for mobile devices
     map.on('touchstart', function(e) {
       if (!drawingMode) return;
-      e.originalEvent.preventDefault();
+      if (!e.originalEvent) return;
+      try { e.originalEvent.preventDefault(); } catch(_){}
+      const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
+      if (!touch) return;
+      const rect = map.getContainer().getBoundingClientRect();
+      const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
       isDrawing = true;
-      var touch = e.originalEvent.touches[0];
-      var latlng = map.containerPointToLatLng([touch.clientX, touch.clientY]);
       currentPath = [latlng];
     });
     
     map.on('touchmove', function(e) {
       if (!drawingMode || !isDrawing) return;
-      e.originalEvent.preventDefault();
-      var touch = e.originalEvent.touches[0];
-      var latlng = map.containerPointToLatLng([touch.clientX, touch.clientY]);
+      if (!e.originalEvent) return;
+      try { e.originalEvent.preventDefault(); } catch(_){}
+      const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
+      if (!touch) return;
+      const rect = map.getContainer().getBoundingClientRect();
+      const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
       currentPath.push(latlng);
       
       if (currentPath.length > 1) {
@@ -514,9 +724,8 @@
             map.removeLayer(layer);
           }
         });
-        
         L.polyline(currentPath, {
-          color: '#ff0000',
+          color: penColor,
           weight: 3,
           opacity: 0.7,
           temp: true
@@ -526,9 +735,8 @@
     
     map.on('touchend', function(e) {
       if (!drawingMode || !isDrawing) return;
-      e.originalEvent.preventDefault();
+      if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       isDrawing = false;
-  // interactions restore handled by stopFreehandDraw
       
       if (currentPath.length > 1) {
         map.eachLayer(function(layer) {
@@ -536,25 +744,25 @@
             map.removeLayer(layer);
           }
         });
-        
         var finalLine = L.polyline(currentPath, {
-          color: '#ff0000',
+          color: penColor,
           weight: 3,
           opacity: 1
         });
-  drawnItems.addLayer(finalLine);
-  lastDrawnPath = finalLine; // remember this path
-  drawHistory.push(finalLine);
-  var undoImg2 = document.getElementById('undo-btn-img');
-  if (undoImg2) undoImg2.style.opacity = '1';
-          if (selectedUnits.length > 0) {
-            const pathLatLngs = lastDrawnPath.getLatLngs();
-            startPathMoveForMarkers(selectedUnits.slice(), pathLatLngs, 1500);
-          }
+        drawnItems.addLayer(finalLine);
+        lastDrawnPath = finalLine; // remember this path
+        drawHistory.push(finalLine);
+        var undoImg2 = document.getElementById('undo-btn-img');
+        if (undoImg2) undoImg2.style.opacity = '1';
+        if (selectedUnits.length > 0) {
+          const pathLatLngs = lastDrawnPath.getLatLngs();
+          startPathMoveForMarkers(selectedUnits.slice(), pathLatLngs, 1500);
+        }
       }
       
       currentPath = [];
     });
+    
 
       function computePathMeta(latlngs) {
         const segDist = [];
@@ -628,23 +836,7 @@
       }
 
     // Button logic
-    document.getElementById('draw-btn').onclick = function() {
-      var img = document.getElementById('draw-btn-img');
-      const palettePanel = document.getElementById('color-palette-panel');
-      if (drawingMode) {
-        stopFreehandDraw();
-        img.src = 'image/IconDrawingG.jpg';
-        img.alt = 'Freehand Draw';
-        this.style.backgroundColor = '#95a5a6';
-        if (palettePanel) palettePanel.style.display = 'none';
-      } else {
-        startFreehandDraw();
-        img.src = 'image/IconDrawingL.jpg';
-        img.alt = 'Stop Drawing';
-        this.style.backgroundColor = '#e74c3c';
-        if (palettePanel) palettePanel.style.display = 'block';
-      }
-    };
+    document.getElementById('draw-btn').onclick = function() { setRadioTool('draw'); };
     
     document.getElementById('clear-btn').onclick = function() {
       clearAllDrawings();
@@ -740,6 +932,30 @@
   let animDrawUnitType = null; // 'tank' | 'uav' | 'jetfighter' | 'helicopter' | 'submarine' | 'battleship'
   let animDrawPoints = [];
   let animDrawTempLine = null;
+  // Map lock when tools are active
+  let lockMapWhenToolActive = false;
+
+  function applyMapLock(lock) {
+    if (lock) {
+      map.dragging.disable();
+      map.touchZoom && map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+      map.boxZoom.disable();
+      map.keyboard.disable();
+      if (map.tap) map.tap.disable();
+      if (map && map._container) { try { map._container.style.touchAction = 'none'; } catch(_){} }
+    } else {
+      map.dragging.enable();
+      map.touchZoom && map.touchZoom.enable();
+      map.doubleClickZoom.enable();
+      map.scrollWheelZoom.enable();
+      map.boxZoom.enable();
+      map.keyboard.enable();
+      if (map.tap) map.tap.enable();
+      if (map && map._container) { try { map._container.style.touchAction = ''; } catch(_){} }
+    }
+  }
 
     // Attach drag handlers so marker rotates following drag direction
     function applyMarkerHeading(m) {
@@ -814,7 +1030,19 @@
         const selImg = document.getElementById('select-mode-btn-img');
         if (selImg) selImg.src = 'image/IconSelectRectangleG.jpg';
       }
-      map.getContainer().style.cursor = 'crosshair';
+      // Toggle off measuring if active
+      if (typeof measuring !== 'undefined' && measuring) {
+        try { stopMeasuring(); } catch(_) {}
+        const mImg = document.getElementById('measure-btn-img');
+        if (mImg) mImg.src = 'image/IconRulerG.jpg';
+        const mBtn = document.getElementById('measure-btn');
+        if (mBtn) mBtn.style.backgroundColor = '#95a5a6';
+      }
+      try { updateMapLockByTools(); } catch(_) {}
+    map.getContainer().style.cursor = 'crosshair';
+  // Deactivate Move when a tool becomes active
+  if (typeof deactivateMove === 'function') deactivateMove();
+  // movement policy handled centrally by updateMapLockByTools()
       if (mode === 'tank') {
         selectedBtn = document.getElementById('tank-btn');
         selectedBtn.querySelector('img').src = 'image/IconTankL.jpg';
@@ -850,6 +1078,8 @@
       }
       placeMode = null;
       map.getContainer().style.cursor = '';
+  // movement policy handled centrally by updateMapLockByTools()
+      try { updateMapLockByTools(); } catch(_) {}
     }
 
     // Animate-on-draw mode: toggle per unit button
@@ -901,6 +1131,8 @@
       animDrawUnitType = type;
       updateUnitButtonsVisual(type);
       map.getContainer().style.cursor = 'crosshair';
+  // movement policy handled centrally by updateMapLockByTools()
+      try { updateMapLockByTools(); } catch(_) {}
     }
 
     function clearAnimDrawMode() {
@@ -908,26 +1140,27 @@
       animDrawUnitType = null;
       updateUnitButtonsVisual(null);
       map.getContainer().style.cursor = '';
+  // movement policy handled centrally by updateMapLockByTools()
+      try { updateMapLockByTools(); } catch(_) {}
     }
 
-    document.getElementById('tank-btn').onclick = function() {
-      if (animDrawActive && animDrawUnitType === 'tank') clearAnimDrawMode(); else setAnimDrawMode('tank');
-    };
-    document.getElementById('uav-btn').onclick = function() {
-      if (animDrawActive && animDrawUnitType === 'uav') clearAnimDrawMode(); else setAnimDrawMode('uav');
-    };
-    document.getElementById('jetfighter-btn').onclick = function() {
-      if (animDrawActive && animDrawUnitType === 'jetfighter') clearAnimDrawMode(); else setAnimDrawMode('jetfighter');
-    };
-    document.getElementById('helicopter-btn').onclick = function() {
-      if (animDrawActive && animDrawUnitType === 'helicopter') clearAnimDrawMode(); else setAnimDrawMode('helicopter');
-    };
-    document.getElementById('submarine-btn').onclick = function() {
-      if (animDrawActive && animDrawUnitType === 'submarine') clearAnimDrawMode(); else setAnimDrawMode('submarine');
-    };
-    document.getElementById('battleship-btn').onclick = function() {
-      if (animDrawActive && animDrawUnitType === 'battleship') clearAnimDrawMode(); else setAnimDrawMode('battleship');
-    };
+    document.getElementById('tank-btn').onclick = function() { setRadioTool('anim:tank'); };
+    document.getElementById('uav-btn').onclick = function() { setRadioTool('anim:uav'); };
+    document.getElementById('jetfighter-btn').onclick = function() { setRadioTool('anim:jetfighter'); };
+    document.getElementById('helicopter-btn').onclick = function() { setRadioTool('anim:helicopter'); };
+    document.getElementById('submarine-btn').onclick = function() { setRadioTool('anim:submarine'); };
+    document.getElementById('battleship-btn').onclick = function() { setRadioTool('anim:battleship'); };
+
+    // Lock toggle button logic
+    const lockBtn = document.getElementById('lock-map-btn');
+    if (lockBtn) {
+      lockBtn.addEventListener('click', function() {
+        lockMapWhenToolActive = !lockMapWhenToolActive;
+        this.textContent = lockMapWhenToolActive ? '🔒' : '🔓';
+        // Do not override movement policy; just update icon then re-apply central rule
+        try { updateMapLockByTools(); } catch(_) {}
+      });
+    }
 
     map.on('click', function(e) {
       if (animDrawActive) return; // block placement while anim-draw mode is active
@@ -979,46 +1212,7 @@
     }
 
     // Select mode toggle
-    document.getElementById('select-mode-btn').onclick = function() {
-      isSelectMode = !isSelectMode;
-      this.classList.toggle('selected', isSelectMode);
-      if (isSelectMode) {
-        const selImg = document.getElementById('select-mode-btn-img');
-        if (selImg) selImg.src = 'image/IconSelectRectangleL.jpg';
-        // Ensure other modes don't interfere
-        clearPlaceMode();
-        if (measuring) {
-          stopMeasuring();
-          const img = document.getElementById('measure-btn-img');
-          if (img) img.src = 'image/IconRulerG.jpg';
-          const btn = document.getElementById('measure-btn');
-          if (btn) btn.style.backgroundColor = '#95a5a6';
-        }
-        // Exit animate-on-draw mode if active
-        if (typeof animDrawActive !== 'undefined' && animDrawActive) {
-          clearAnimDrawMode();
-          // Remove any temp line/points from anim-draw gesture
-          if (typeof animDrawTempLine !== 'undefined' && animDrawTempLine) { try { map.removeLayer(animDrawTempLine); } catch(_){} animDrawTempLine = null; }
-          if (typeof animDrawPoints !== 'undefined') animDrawPoints = [];
-        }
-        // Exit drawing mode if active
-        if (typeof drawingMode !== 'undefined' && drawingMode) {
-          stopFreehandDraw();
-          const drawImg = document.getElementById('draw-btn-img');
-          if (drawImg) drawImg.src = 'image/IconDrawingG.jpg';
-          const drawBtn = document.getElementById('draw-btn');
-          if (drawBtn) drawBtn.style.backgroundColor = '#95a5a6';
-          const palettePanel = document.getElementById('color-palette-panel');
-          if (palettePanel) palettePanel.style.display = 'none';
-        }
-        // Set a clear crosshair cursor to indicate selection
-        map.getContainer().style.cursor = 'crosshair';
-      } else {
-        const selImg = document.getElementById('select-mode-btn-img');
-        if (selImg) selImg.src = 'image/IconSelectRectangleG.jpg';
-        map.getContainer().style.cursor = '';
-      }
-    };
+    document.getElementById('select-mode-btn').onclick = function() { setRadioTool('select'); };
 
     // Issue move command on map click in select mode (when not clicking a marker)
     map.on('click', function(e) {
@@ -1028,11 +1222,10 @@
       moveSelectedUnitsTo(e.latlng);
     });
 
-    // Select-mode marquee selection
+    // Select-mode marquee selection (separate mouse and touch)
     map.on('mousedown', function(e) {
       if (!isSelectMode) return;
       if (e.originalEvent && e.originalEvent.button !== 0) return; // left button only
-      // Otherwise proceed with marquee selection
       marqueeActive = true;
       marqueeMoved = false;
       marqueeStart = e.latlng;
@@ -1049,7 +1242,6 @@
 
     map.on('mousemove', function(e) {
       if (!isSelectMode) return;
-      // Update marquee rectangle when active
       if (!marqueeActive || !marqueeRect) return;
       const p0 = map.latLngToContainerPoint(marqueeStart);
       const p1 = map.latLngToContainerPoint(e.latlng);
@@ -1062,9 +1254,8 @@
 
     map.on('mouseup', function(e) {
       if (!isSelectMode) return;
-      // Finish marquee selection flow
       if (!marqueeActive) return;
-  map.dragging.enable();
+      map.dragging.enable();
       if (marqueeMoved && marqueeRect) {
         const bounds = marqueeRect.getBounds();
         while (selectedUnits.length) {
@@ -1087,14 +1278,14 @@
       marqueeStart = null;
     });
 
-    // Touch equivalents for select-mode marquee (full touchscreen)
+    // Touch equivalents for select-mode marquee
     map.on('touchstart', function(e) {
       if (!isSelectMode) return;
       if (!e.originalEvent) return;
       const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
       if (!touch) return;
-      const latlng = map.containerPointToLatLng([touch.clientX, touch.clientY]);
-      // Otherwise begin marquee selection
+      const rect = map.getContainer().getBoundingClientRect();
+      const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
       e.originalEvent.preventDefault();
       marqueeActive = true;
       marqueeMoved = false;
@@ -1115,7 +1306,8 @@
       if (!e.originalEvent) return;
       const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
       if (!touch) return;
-      const latlng = map.containerPointToLatLng([touch.clientX, touch.clientY]);
+      const rect = map.getContainer().getBoundingClientRect();
+      const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
       if (marqueeActive && marqueeRect) {
         e.originalEvent.preventDefault();
         const p0 = map.latLngToContainerPoint(marqueeStart);
@@ -1131,7 +1323,7 @@
     map.on('touchend', function(e) {
       if (!isSelectMode) return;
       if (marqueeActive) {
-  map.dragging.enable();
+        map.dragging.enable();
         if (marqueeMoved && marqueeRect) {
           const bounds = marqueeRect.getBounds();
           while (selectedUnits.length) {
@@ -1566,8 +1758,7 @@
       measureMarkers = [];
       if (measureTooltip) { map.removeLayer(measureTooltip); measureTooltip = null; }
       map.getContainer().style.cursor = 'crosshair';
-      // Disable other tool buttons and exit conflicting modes
-      disableToolsForMeasuring(true);
+  // Do not disable other tools; allow switching like radio buttons
       // Exit select mode
       if (typeof isSelectMode !== 'undefined' && isSelectMode) {
         isSelectMode = false;
@@ -1607,7 +1798,7 @@
     function stopMeasuring() {
       measuring = false;
       map.getContainer().style.cursor = '';
-      disableToolsForMeasuring(false);
+  // Keep other tools enabled (radio behavior)
   // Restore interactions
   map.dragging.enable();
   if (map.touchZoom) map.touchZoom.enable();
@@ -1618,16 +1809,7 @@
   if (map.tap) map.tap.enable();
     }
 
-    function disableToolsForMeasuring(disabled) {
-  const ids = ['tank-btn','uav-btn','jetfighter-btn','helicopter-btn','submarine-btn','battleship-btn','select-mode-btn'];
-      ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.disabled = disabled;
-          el.style.opacity = disabled ? '0.5' : '1';
-        }
-      });
-    }
+    // Measuring no longer disables other tool buttons; it behaves like radio with other tools
 
     function updateMeasure() {
       if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
@@ -1656,21 +1838,7 @@
       }
     }
 
-    document.getElementById('measure-btn').onclick = function() {
-      var img = document.getElementById('measure-btn-img');
-      if (measuring) {
-        stopMeasuring();
-        img.src = 'image/IconRulerG.jpg';
-        img.alt = 'Measure Distance';
-        this.style.backgroundColor = '#95a5a6';
-        // Do NOT clear measurement visuals here
-      } else {
-        startMeasuring();
-        img.src = 'image/IconRulerL.jpg';
-        img.alt = 'Stop Measuring';
-        this.style.backgroundColor = '#e67e22';
-      }
-    };
+    document.getElementById('measure-btn').onclick = function() { setRadioTool('measure'); };
 
     map.on('click', function(e) {
       if (measuring) {
