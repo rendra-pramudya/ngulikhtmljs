@@ -736,32 +736,51 @@
     let pathAnimating = false;
     
 
-    // Country borders overlay (global)
-    // Use public Natural Earth countries GeoJSON via DataHub
-    /*
-    try {
-      map.createPane('bordersPane');
-      map.getPane('bordersPane').style.zIndex = 430; // above tiles, below markers
+    // Country borders overlay (toggle via Ctrl+B)
+    let bordersLayer = null;
+    let bordersVisible = false;
+    let bordersLoading = false;
+    function showBorders() {
+      if (bordersLayer) {
+        try { bordersLayer.addTo(map); } catch(_){}
+        bordersVisible = true;
+        try { showToast('Borders: ON'); } catch(_){}
+        return;
+      }
+      if (bordersLoading) return;
+      bordersLoading = true;
+      try { showToast('Loading borders...'); } catch(_){}
+      try {
+        map.createPane('bordersPane');
+        map.getPane('bordersPane').style.zIndex = 430; // above tiles, below markers
+      } catch(_){ }
       fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
         .then(r => r.json())
         .then(geo => {
-          L.geoJSON(geo, {
+          bordersLayer = L.geoJSON(geo, {
             pane: 'bordersPane',
             interactive: false,
             smoothFactor: 1,
             style: function() {
-              return {
-                color: '#ffffff',
-                weight: 1,
-                opacity: 0.7,
-                fillOpacity: 0
-              };
+              return { color: '#ffffff', weight: 1, opacity: 0.7, fillOpacity: 0 };
             }
           }).addTo(map);
+          bordersVisible = true;
+          bordersLoading = false;
+          try { showToast('Borders: ON'); } catch(_){}
         })
-        .catch(e => console.warn('Borders load failed:', e));
-    } catch (e) { console.warn('Borders setup error:', e); }
-    */
+        .catch(e => {
+          bordersLoading = false;
+          try { debug('Borders load failed: ' + (e && (e.message || e))); } catch(_){}
+          try { showToast('Borders failed to load'); } catch(_){}
+        });
+    }
+    function hideBorders() {
+      if (bordersLayer) { try { map.removeLayer(bordersLayer); } catch(_){} }
+      bordersVisible = false;
+      try { showToast('Borders: OFF'); } catch(_){}
+    }
+    function toggleBorders() { if (bordersVisible) hideBorders(); else showBorders(); }
     // Freehand drawing variables
     var isDrawing = false;
     var currentPath = [];
@@ -2557,6 +2576,25 @@
     try { updatePaletteSelection(); } catch(_){}
 
     // penColor is applied in mouse/touch drawing handlers above
+
+    // Keyboard shortcuts
+    // Ctrl+B: toggle country borders; Ctrl+D: toggle debug overlay
+    window.addEventListener('keydown', function(e){
+      try {
+        if (!e.ctrlKey || e.shiftKey || e.altKey) return;
+        if (e.code === 'KeyB') {
+          e.preventDefault();
+          toggleBorders();
+        } else if (e.code === 'KeyD') {
+          e.preventDefault();
+          const dbg = document.getElementById('debug-overlay');
+          if (!dbg) return;
+          const hidden = getComputedStyle(dbg).display === 'none';
+          dbg.style.display = hidden ? 'flex' : 'none';
+          try { showToast('Debug: ' + (hidden ? 'ON' : 'OFF')); } catch(_){}
+        }
+      } catch(_){ }
+    }, { passive: false });
   </script>
 </body>
 </html>
