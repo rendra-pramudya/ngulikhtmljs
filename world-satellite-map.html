@@ -14,6 +14,8 @@
       width: 100vw;
       margin: 0;
       padding: 0;
+      /* Darken map background to avoid bright flashes under tiles */
+      background: #0b0b0b;
     }
     body {
       margin: 0;
@@ -196,6 +198,28 @@
   .leaflet-popup.measure-popup .leaflet-popup-content-wrapper { border-radius: 0; background: rgba(0,0,0,0.9); color: #fff; }
   .leaflet-popup.measure-popup .leaflet-popup-content { color: #fff; margin: 6px 8px; }
   .leaflet-popup.measure-popup { border-radius: 0; }
+    /* Debug overlay */
+    #debug-overlay {
+      position: fixed;
+      left: 10px;
+      bottom: 70px; /* keep a bit above toasts */
+      width: 480px;
+      max-height: 40vh;
+      background: rgba(0,0,0,0.85);
+      color: #e6e6e6;
+      font: 11px/1.3 Consolas, Menlo, Monaco, monospace;
+      padding: 6px 6px 4px 6px;
+      z-index: 10000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      border-radius: 3px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    #debug-overlay .dbg-head { display:flex; align-items:center; justify-content:space-between; }
+    #debug-overlay .dbg-title { font-weight:600; color:#fff; }
+    #debug-overlay .dbg-controls button, #debug-overlay .dbg-controls label { font-size: 11px; }
+    #debug-lines { overflow:auto; white-space: pre-wrap; word-break: break-word; max-height: 30vh; }
   </style>
 </head>
 <body>
@@ -278,9 +302,67 @@
   </div>
   <!-- action-mode-panel removed as requested -->
   <div id="map"></div>
+  <!-- Debug overlay (bottom-left) -->
+  <div id="debug-overlay" aria-live="polite" aria-label="Debug log" role="log">
+    <div class="dbg-head">
+      <div class="dbg-title">Debug</div>
+      <div class="dbg-controls">
+        <label title="Pause logging" style="cursor:pointer;margin-right:6px;"><input id="debug-pause" type="checkbox"> Pause</label>
+        <button id="debug-clear" title="Clear log">Clear</button>
+      </div>
+    </div>
+    <div id="debug-lines"></div>
+  </div>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
   <script>
+    // Debug utilities
+    (function(){
+      var paused = false;
+      var maxLines = 200;
+      var linesEl = null;
+      function ts() {
+        var d = new Date();
+        var h = (''+d.getHours()).padStart(2,'0');
+        var m = (''+d.getMinutes()).padStart(2,'0');
+        var s = (''+d.getSeconds()).padStart(2,'0');
+        var ms = (''+d.getMilliseconds()).padStart(3,'0');
+        return h+':'+m+':'+s+'.'+ms;
+      }
+      window.debug = function(msg){
+        try {
+          if (!linesEl) linesEl = document.getElementById('debug-lines');
+          if (!linesEl) return;
+          if (paused) return;
+          var line = document.createElement('div');
+          line.textContent = ts() + ' ' + msg;
+          linesEl.appendChild(line);
+          // Trim
+          var extra = linesEl.children.length - maxLines;
+          if (extra > 0) {
+            for (var i=0; i<extra; i++) {
+              try { linesEl.removeChild(linesEl.firstChild); } catch(_){}
+            }
+          }
+          // Auto scroll to bottom
+          linesEl.scrollTop = linesEl.scrollHeight;
+        } catch(_){ /* no-op */ }
+      };
+      // Wire controls
+      window.addEventListener('DOMContentLoaded', function(){
+        var pauseEl = document.getElementById('debug-pause');
+        var clearEl = document.getElementById('debug-clear');
+        if (pauseEl) pauseEl.addEventListener('change', function(){ paused = !!this.checked; });
+        if (clearEl) clearEl.addEventListener('click', function(){
+          if (!linesEl) linesEl = document.getElementById('debug-lines');
+          if (linesEl) linesEl.innerHTML = '';
+        });
+      });
+      // Global error surfacing
+      window.addEventListener('error', function(e){ try { window.debug('[error] ' + (e && e.message ? e.message : 'unknown')); } catch(_){} });
+      window.addEventListener('unhandledrejection', function(e){ try { window.debug('[promise] ' + (e && e.reason ? (e.reason.message || e.reason) : 'rejected')); } catch(_){} });
+    })();
+
     function showToast(message, timeoutMs = 2000) {
       const c = document.getElementById('toast-container');
       if (!c) return;
@@ -292,11 +374,116 @@
     }
     
     // Map setup
-    var map = L.map('map').setView([0, 0], 2);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-    }).addTo(map);
+  var map = L.map('map').setView([0, 0], 2);
+  try { debug('[init] Leaflet map created'); } catch(_){ }
+  // Attach unified pointer drawing
+  try { attachPointerDrawing(); debug('[init] pointer drawing attached'); } catch(_){ }
+
+    // A resilient tile layer that retries failed tiles with backoff and keeps a larger buffer
+    (function(){
+      const RetryingTileLayer = L.TileLayer.extend({
+        createTile: function(coords, done) {
+          const tile = document.createElement('img');
+          tile.alt = '';
+          tile.setAttribute('role', 'presentation');
+          // Hint the browser to decode off the main thread
+          try { tile.decoding = 'async'; } catch(_){}
+          if (this.options.crossOrigin) tile.crossOrigin = '';
+
+          // Attach load/error handlers
+          L.DomEvent.on(tile, 'load', L.bind(this._tileOnLoad, this, done, tile));
+          // Wrap our own error handler with retry/backoff
+          const onErr = (e) => {
+            const att = tile.__retryAttempts || 0;
+            this._tileOnErrorEx(done, tile, coords, att, e);
+          };
+          L.DomEvent.on(tile, 'error', onErr);
+
+          tile.src = this.getTileUrl(coords);
+          return tile;
+        },
+        _tileOnErrorEx: function(done, tile, coords, attempt, e){
+          const max = this.options.maxRetries || 3;
+          if (attempt < max) {
+            const delay = Math.min(1600, 200 * Math.pow(2, attempt));
+            // Retry same URL (avoid cache-busting so browser can coalesce)
+            const url = this.getTileUrl(coords);
+            tile.__retryAttempts = attempt + 1;
+            setTimeout(() => { try { tile.src = url; } catch(_){} }, delay);
+          } else {
+            // Fall back to transparent/error tile via the stock handler
+            this._tileOnError(done, tile, e);
+          }
+        }
+      });
+
+      const esriUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      // Keep previous zoom tiles around (larger keepBuffer) and update during interaction
+      const baseLayer = new RetryingTileLayer(esriUrl, {
+        maxZoom: 19,
+        updateWhenIdle: true,            // defer some work until pan/zoom end for smoother feel
+        updateWhenZooming: true,         // still load during zoom animations
+        keepBuffer: 3,                   // moderate offscreen retention to balance memory and CPU
+        crossOrigin: true,               // allow browser caching and future canvas ops
+        detectRetina: false,             // avoid double-density tile loads on HiDPI
+        errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAAAAACw=', // transparent
+        maxRetries: 2,
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  }).addTo(map);
+  try { debug('[tiles] base layer ready'); } catch(_){ }
+
+      // Proactively warm tiles just outside the viewport to reduce white gaps on quick pans
+      // Debounced, limited tile warming to reduce overhead
+      const warmedRecently = new Map(); // key -> timestamp
+      let warmTimer = null;
+      function warmTiles(layer, marginTiles) {
+        try {
+          const zoom = map.getZoom();
+          const tileSize = layer.getTileSize ? layer.getTileSize().x : 256;
+          const pixelBounds = map.getPixelBounds();
+          const minX = Math.floor(pixelBounds.min.x / tileSize) - marginTiles;
+          const maxX = Math.floor(pixelBounds.max.x / tileSize) + marginTiles;
+          const minY = Math.floor(pixelBounds.min.y / tileSize) - marginTiles;
+          const maxY = Math.floor(pixelBounds.max.y / tileSize) + marginTiles;
+          const max = 1 << zoom; // 2^zoom
+          const now = Date.now();
+          const maxPrefetch = 32; // cap per cycle
+          let count = 0;
+          for (let ty = Math.max(0, minY); ty <= Math.min(max - 1, maxY); ty++) {
+            for (let tx = minX; tx <= maxX; tx++) {
+              if (count >= maxPrefetch) return;
+              const xw = ((tx % max) + max) % max; // wrap X
+              const key = zoom + '/' + xw + '/' + ty;
+              const last = warmedRecently.get(key) || 0;
+              if (now - last < 30000) continue; // skip if warmed within 30s
+              const url = layer.getTileUrl({x: xw, y: ty, z: zoom});
+              const img = new Image();
+              try { img.decoding = 'async'; } catch(_){}
+              try { img.crossOrigin = ''; } catch(_){}
+              img.src = url; // let browser cache it
+              warmedRecently.set(key, now);
+              count++;
+            }
+          }
+        } catch (err) { /* no-op */ }
+      }
+      function scheduleWarm() {
+        if (warmTimer) { clearTimeout(warmTimer); warmTimer = null; }
+        const run = function(){ warmTiles(baseLayer, 1); };
+        // Prefer running during idle time to reduce jank
+        if (typeof requestIdleCallback === 'function') {
+          warmTimer = setTimeout(function(){ requestIdleCallback(run, { timeout: 300 }); }, 120);
+        } else {
+          warmTimer = setTimeout(run, 150);
+        }
+      }
+  map.on('moveend zoomend', scheduleWarm);
+      // Initial warm (debounced)
+      scheduleWarm();
+
+      // Replace the previous preloadTiles with a version that uses the baseLayer URL
+      window.__baseTileLayer = baseLayer;
+    })();
 
     // Simple Move toggle under Undo (icon-only state)
     let moveActive = false;
@@ -431,7 +618,111 @@
     try { updateMapLockByTools(); } catch(_) {}
 
     // Remove Leaflet attribution control
-    map.attributionControl.remove();
+    try { map.attributionControl.remove(); } catch(_){ }
+
+    // Debug: attach event logs (map-level and DOM-level)
+    ;(function(){
+      function llToStr(ll){
+        if (!ll) return '';
+        try { return ll.lat.toFixed(5)+','+ll.lng.toFixed(5); } catch(_) { return ''; }
+      }
+      var lastMapMoveLog = 0;
+  map.on('mousedown', function(e){ try { var d = (typeof describeActiveTool==='function')?describeActiveTool():''; debug('[map] mousedown' + (d?' '+d:'') + ' @ ' + llToStr(e.latlng)); } catch(_){ } });
+  map.on('mouseup', function(e){ try { var d = (typeof describeActiveTool==='function')?describeActiveTool():''; debug('[map] mouseup  ' + (d?' '+d:'') + ' @ ' + llToStr(e.latlng)); } catch(_){ } });
+  map.on('click', function(e){ try { var d = (typeof describeActiveTool==='function')?describeActiveTool():''; debug('[map] click    ' + (d?' '+d:'') + ' @ ' + llToStr(e.latlng)); } catch(_){ } });
+      map.on('dblclick', function(e){ try { debug('[map] dblclick  @ ' + llToStr(e.latlng)); } catch(_){ } });
+      function getIconUrlForUnit(t){
+        try {
+          if (t === 'tank' && typeof tankIcon !== 'undefined' && tankIcon.options) return tankIcon.options.iconUrl;
+          if (t === 'uav' && typeof uavIcon !== 'undefined' && uavIcon.options) return uavIcon.options.iconUrl;
+          if (t === 'jetfighter' && typeof jetfighterIcon !== 'undefined' && jetfighterIcon.options) return jetfighterIcon.options.iconUrl;
+          if (t === 'helicopter' && typeof helicopterIcon !== 'undefined' && helicopterIcon.options) return helicopterIcon.options.iconUrl;
+          if (t === 'submarine' && typeof submarineIcon !== 'undefined' && submarineIcon.options) return submarineIcon.options.iconUrl;
+          if (t === 'battleship' && typeof battleshipIcon !== 'undefined' && battleshipIcon.options) return battleshipIcon.options.iconUrl;
+        } catch(_){}
+        return '';
+      }
+      function describeActiveTool(){
+        try {
+          // Prefer central radio-state helper when available
+          var mode = null;
+          try { mode = (typeof getActiveRadioTool === 'function') ? getActiveRadioTool() : null; } catch(_){}
+          // Drawing line
+          if ((typeof drawingMode !== 'undefined' && drawingMode) || mode === 'draw') {
+            var color = (typeof penColor !== 'undefined' && penColor) ? penColor : '#ff0000';
+            return 'type=line color=' + color;
+          }
+          // Measuring
+          if ((typeof measuring !== 'undefined' && measuring) || mode === 'measure') {
+            return 'type=measure';
+          }
+          // Select
+          if ((typeof isSelectMode !== 'undefined' && isSelectMode) || mode === 'select') {
+            return 'type=select';
+          }
+          // Animate-on-draw unit tool
+          if ((typeof animDrawActive !== 'undefined' && animDrawActive) || (mode && mode.indexOf('anim:') === 0)) {
+            var unit = (typeof animDrawUnitType !== 'undefined' && animDrawUnitType) ? animDrawUnitType : (mode ? mode.split(':')[1] : '');
+            var url = getIconUrlForUnit(unit);
+            return 'type=icon tool=' + unit + (url ? ' iconMap=' + url : '');
+          }
+          // Legacy place mode (if used)
+          if (typeof placeMode !== 'undefined' && placeMode) {
+            var url2 = getIconUrlForUnit(placeMode);
+            return 'type=icon tool=' + placeMode + (url2 ? ' iconMap=' + url2 : '');
+          }
+          // Move
+          if ((typeof moveActive !== 'undefined' && moveActive) || mode === 'move') {
+            return 'type=move';
+          }
+          return 'type=none';
+        } catch(_) { return 'type=?'; }
+      }
+      map.on('touchstart', function(e){
+        try {
+          var msg = '[map] touchstart';
+          var desc = describeActiveTool();
+          if (desc) msg += ' ' + desc;
+          debug(msg);
+        } catch(_){ }
+      });
+      map.on('touchend', function(e){ try { debug('[map] touchend'); } catch(_){ } });
+      map.on('movestart', function(){ try { debug('[map] movestart'); } catch(_){ } });
+      map.on('moveend', function(){ try { debug('[map] moveend'); } catch(_){ } });
+      map.on('zoomstart', function(){ try { debug('[map] zoomstart'); } catch(_){ } });
+      map.on('zoomend', function(){ try { debug('[map] zoomend'); } catch(_){ } });
+
+      // DOM-level events to see raw pointer/touch/mouse
+      var c = map.getContainer();
+      var lastDomMoveLog = 0;
+      function xyToLatLng(ev){
+        try {
+          var rect = c.getBoundingClientRect();
+          var x = (ev.clientX != null ? ev.clientX : (ev.touches && ev.touches[0] ? ev.touches[0].clientX : null));
+          var y = (ev.clientY != null ? ev.clientY : (ev.touches && ev.touches[0] ? ev.touches[0].clientY : null));
+          if (x == null || y == null) return null;
+          return map.containerPointToLatLng([x - rect.left, y - rect.top]);
+        } catch(_) { return null; }
+      }
+      function onDom(type){
+        return function(ev){
+          try {
+            var ll = xyToLatLng(ev);
+            var pos = ll ? (' @ ' + ll.lat.toFixed(5)+','+ll.lng.toFixed(5)) : '';
+            var t = Date.now();
+            if (type === 'pointermove' || type === 'mousemove' || type === 'touchmove') {
+              if (t - lastDomMoveLog < 150) return; // throttle
+              lastDomMoveLog = t;
+            }
+            var d = (typeof describeActiveTool==='function')?describeActiveTool():'';
+            debug('[dom] ' + type + (d?' '+d:'') + pos);
+          } catch(_){}
+        };
+      }
+      ['pointerdown','pointerup','mousedown','mouseup','click','dblclick','contextmenu','wheel','touchstart','touchend'].forEach(function(tp){ try { c.addEventListener(tp, onDom(tp), { passive: false }); } catch(_){} });
+      // Optionally enable move logs by uncommenting:
+      // ['pointermove','mousemove','touchmove'].forEach(function(tp){ try { c.addEventListener(tp, onDom(tp), { passive: false }); } catch(_){} });
+    })();
 
   // Freehand drawing setup
   var drawnItems = new L.FeatureGroup();
@@ -447,6 +738,7 @@
 
     // Country borders overlay (global)
     // Use public Natural Earth countries GeoJSON via DataHub
+    /*
     try {
       map.createPane('bordersPane');
       map.getPane('bordersPane').style.zIndex = 430; // above tiles, below markers
@@ -469,23 +761,108 @@
         })
         .catch(e => console.warn('Borders load failed:', e));
     } catch (e) { console.warn('Borders setup error:', e); }
-    
+    */
     // Freehand drawing variables
     var isDrawing = false;
     var currentPath = [];
   var drawingMode = false;
+  // Color captured at gesture start to keep a stroke consistent even if user switches color mid-gesture
+  var currentStrokeColor = null;
   // Track ghost mouse events after touch
   var lastTouchTime = 0;
   // Single temp polyline for freehand preview
   var freehandTempLine = null;
   // Revert to separate mouse/touch handlers (no pointer unification)
+  // Pointer-based drawing (unified for mouse & touch)
+  var pointerDrawingEnabled = true;
+  var activePointerId = null;
+  function attachPointerDrawing(){
+    try {
+      var c = map.getContainer();
+      if (!c) return;
+      function getLatLngFromPointer(ev){
+        try {
+          var rect = c.getBoundingClientRect();
+          var x = ev.clientX;
+          var y = ev.clientY;
+          return map.containerPointToLatLng([x - rect.left, y - rect.top]);
+        } catch(_) { return null; }
+      }
+      function onPointerDown(ev){
+        if (!pointerDrawingEnabled) return;
+        if (!drawingMode) return;
+        if (ev.isPrimary === false) return;
+        if (ev.pointerType === 'mouse' && ev.button !== 0) return; // left button only
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        var ll = getLatLngFromPointer(ev);
+        if (!ll) return;
+        activePointerId = ev.pointerId;
+        beginFreehandAt(ll);
+      }
+      function onPointerMove(ev){
+        if (!pointerDrawingEnabled) return;
+        if (!drawingMode || !isDrawing) return;
+        if (activePointerId == null || ev.pointerId !== activePointerId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        var ll = getLatLngFromPointer(ev);
+        if (!ll) return;
+        extendFreehandTo(ll);
+      }
+      function onPointerUp(ev){
+        if (!pointerDrawingEnabled) return;
+        if (!drawingMode || !isDrawing) return;
+        if (activePointerId == null || ev.pointerId !== activePointerId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        activePointerId = null;
+        endFreehand();
+      }
+      function onPointerCancel(ev){
+        if (!pointerDrawingEnabled) return;
+        if (!drawingMode || !isDrawing) return;
+        if (activePointerId == null || ev.pointerId !== activePointerId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        activePointerId = null;
+        endFreehand();
+      }
+      c.addEventListener('pointerdown', onPointerDown, { passive: false });
+      c.addEventListener('pointermove', onPointerMove, { passive: false });
+      c.addEventListener('pointerup', onPointerUp, { passive: false });
+      c.addEventListener('pointercancel', onPointerCancel, { passive: false });
+    } catch(_){}
+  }
+  // Unified gesture helpers used by both mouse and touch paths
+  function beginFreehandAt(latlng) {
+    isDrawing = true;
+    currentStrokeColor = penColor || '#ff0000';
+    currentPath = [latlng];
+  }
+  function extendFreehandTo(latlng) {
+    currentPath.push(latlng);
+    if (currentPath.length > 1) {
+      if (!freehandTempLine) {
+        var strokeCol = currentStrokeColor || penColor || '#ff0000';
+        freehandTempLine = L.polyline(currentPath, { color: strokeCol, weight: 3, opacity: 0.7, temp: true }).addTo(tempDrawLayer);
+      } else {
+        freehandTempLine.setLatLngs(currentPath);
+      }
+    }
+  }
+  function endFreehand() {
+    isDrawing = false;
+    finalizeFreehandPath();
+  }
 
     function finalizeFreehandPath() {
       if (currentPath.length > 1) {
         // Remove temporary preview line
         if (freehandTempLine) { try { tempDrawLayer.removeLayer(freehandTempLine); } catch(_) {} freehandTempLine = null; }
         // Add final polyline to drawn items
-        var finalLine = L.polyline(currentPath, { color: penColor, weight: 3, opacity: 1 });
+        var strokeCol = currentStrokeColor || penColor || '#ff0000';
+        var finalLine = L.polyline(currentPath, { color: strokeCol, weight: 3, opacity: 1 });
         drawnItems.addLayer(finalLine);
         lastDrawnPath = finalLine;
         drawHistory.push(finalLine);
@@ -497,6 +874,7 @@
         }
       }
       currentPath = [];
+      currentStrokeColor = null;
     }
     
     // Freehand drawing functions
@@ -508,7 +886,7 @@
           const selImg = document.getElementById('select-mode-btn-img');
           if (selImg) selImg.src = 'image/IconSelectRectangleG.jpg';
         }
-        map.getContainer().style.cursor = 'crosshair';
+  map.getContainer().style.cursor = 'crosshair';
         map.dragging.disable();
         map.touchZoom && map.touchZoom.disable();
         map.doubleClickZoom.disable();
@@ -517,10 +895,13 @@
         map.keyboard.disable();
         if (map.tap) map.tap.disable();
         // Prevent browser-native touch gestures while drawing
-        if (map && map._container) { try { map._container.style.touchAction = 'none'; } catch(_){} }
+  if (map && map._container) { try { map._container.style.touchAction = 'none'; } catch(_){} }
         // Show color palette when drawing starts
         const palettePanelStart = document.getElementById('color-palette-panel');
-        if (palettePanelStart) palettePanelStart.style.display = 'block';
+        if (palettePanelStart) {
+          palettePanelStart.style.display = 'block';
+          try { updatePaletteSelection(); } catch(_){}
+        }
         try { updateMapLockByTools(); } catch(_) {}
     }
     
@@ -528,7 +909,7 @@
       drawingMode = false;
       isDrawing = false;
       currentPath = [];
-      map.getContainer().style.cursor = '';
+  map.getContainer().style.cursor = '';
       map.dragging.enable();
       map.touchZoom && map.touchZoom.enable();
       map.doubleClickZoom.enable();
@@ -539,6 +920,8 @@
       // Hide color palette whenever drawing stops (icon turns G)
       const palettePanelStop = document.getElementById('color-palette-panel');
       if (palettePanelStop) palettePanelStop.style.display = 'none';
+  // Allow standard touch gestures again
+  if (map && map._container) { try { map._container.style.touchAction = ''; } catch(_){} }
     }
     
     function clearAllDrawings() {
@@ -570,42 +953,38 @@
 
     // Mouse event handlers for freehand drawing
     map.on('mousedown', function(e) {
+      if (pointerDrawingEnabled) return; // unified pointer flow is active
       if (!drawingMode) return;
       // Ignore synthetic mouse events shortly after touch
       if (Date.now() - lastTouchTime < 500) return;
       if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
-      isDrawing = true;
-      currentPath = [e.latlng];
+      beginFreehandAt(e.latlng);
     });
     
     map.on('mousemove', function(e) {
+      if (pointerDrawingEnabled) return; // unified pointer flow is active
       if (!drawingMode || !isDrawing) return;
       // Ignore synthetic mouse events shortly after touch
       if (Date.now() - lastTouchTime < 500) return;
       if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
-      currentPath.push(e.latlng);
-      // Update or create the single freehand temp preview line
-      if (!freehandTempLine) {
-        freehandTempLine = L.polyline(currentPath, { color: penColor, weight: 3, opacity: 0.7, temp: true }).addTo(tempDrawLayer);
-      } else {
-        freehandTempLine.setLatLngs(currentPath);
-      }
+      extendFreehandTo(e.latlng);
     });
     
     map.on('mouseup', function(e) {
+      if (pointerDrawingEnabled) return; // unified pointer flow is active
       if (!drawingMode || !isDrawing) return;
       // Ignore synthetic mouse events shortly after touch
       if (Date.now() - lastTouchTime < 500) return;
       if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       if (typeof L !== 'undefined' && L.DomEvent) { try { L.DomEvent.stop(e.originalEvent); } catch(_){} }
-      isDrawing = false;
-      finalizeFreehandPath();
+      endFreehand();
     });
     
     // Touch event handlers for mobile devices
     map.on('touchstart', function(e) {
+      if (pointerDrawingEnabled) return; // unified pointer flow is active
       if (!drawingMode) return;
       if (!e.originalEvent) return;
       try { e.originalEvent.preventDefault(); } catch(_){ }
@@ -614,11 +993,11 @@
       if (!touch) return;
       const rect = map.getContainer().getBoundingClientRect();
       const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
-      isDrawing = true;
-      currentPath = [latlng];
+      beginFreehandAt(latlng);
     });
     
     map.on('touchmove', function(e) {
+      if (pointerDrawingEnabled) return; // unified pointer flow is active
       if (!drawingMode || !isDrawing) return;
       if (!e.originalEvent) return;
       try { e.originalEvent.preventDefault(); } catch(_){ }
@@ -627,23 +1006,15 @@
       if (!touch) return;
       const rect = map.getContainer().getBoundingClientRect();
       const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
-      currentPath.push(latlng);
-      
-      if (currentPath.length > 1) {
-        if (!freehandTempLine) {
-          freehandTempLine = L.polyline(currentPath, { color: penColor, weight: 3, opacity: 0.7, temp: true }).addTo(tempDrawLayer);
-        } else {
-          freehandTempLine.setLatLngs(currentPath);
-        }
-      }
+      extendFreehandTo(latlng);
     });
     
     map.on('touchend', function(e) {
+      if (pointerDrawingEnabled) return; // unified pointer flow is active
       if (!drawingMode || !isDrawing) return;
       if (e && e.originalEvent) { try { e.originalEvent.preventDefault(); } catch(_){} }
       lastTouchTime = Date.now();
-      isDrawing = false;
-      finalizeFreehandPath();
+      endFreehand();
     });
 
     // Finalize drawing if the touch/pointer is canceled by the OS (common on Windows)
@@ -842,6 +1213,8 @@
   let marqueeMoved = false;
   let marqueeStart = null;
   let marqueeRect = null;
+  // Use Pointer Events for marquee selection (unified across mouse/touch/pen)
+  let marqueePointerEnabled = true;
   // Select-mode path gesture disabled (reserved for future)
   let selectPathActive = false;
   let selectPathPoints = [];
@@ -1145,8 +1518,9 @@
       moveSelectedUnitsTo(e.latlng);
     });
 
-    // Select-mode marquee selection (separate mouse and touch)
+    // Select-mode marquee selection (legacy handlers guarded when pointer is enabled)
     map.on('mousedown', function(e) {
+      if (marqueePointerEnabled) return;
       if (!isSelectMode) return;
       if (e.originalEvent && e.originalEvent.button !== 0) return; // left button only
       marqueeActive = true;
@@ -1164,6 +1538,7 @@
     });
 
     map.on('mousemove', function(e) {
+      if (marqueePointerEnabled) return;
       if (!isSelectMode) return;
       if (!marqueeActive || !marqueeRect) return;
       const p0 = map.latLngToContainerPoint(marqueeStart);
@@ -1176,6 +1551,7 @@
     });
 
     map.on('mouseup', function(e) {
+      if (marqueePointerEnabled) return;
       if (!isSelectMode) return;
       if (!marqueeActive) return;
       map.dragging.enable();
@@ -1201,8 +1577,9 @@
       marqueeStart = null;
     });
 
-    // Touch equivalents for select-mode marquee
+    // Touch equivalents for select-mode marquee (guarded)
     map.on('touchstart', function(e) {
+      if (marqueePointerEnabled) return;
       if (!isSelectMode) return;
       if (!e.originalEvent) return;
       const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
@@ -1225,6 +1602,7 @@
     });
 
     map.on('touchmove', function(e) {
+      if (marqueePointerEnabled) return;
       if (!isSelectMode) return;
       if (!e.originalEvent) return;
       const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
@@ -1244,6 +1622,7 @@
     });
 
     map.on('touchend', function(e) {
+      if (marqueePointerEnabled) return;
       if (!isSelectMode) return;
       if (marqueeActive) {
         map.dragging.enable();
@@ -1269,6 +1648,117 @@
         marqueeStart = null;
       }
     });
+
+    // Pointer-based marquee (unified)
+    (function(){
+      const c = map.getContainer();
+      const MARQUEE_THRESHOLD_PX = 12; // require a meaningful drag before starting marquee
+      let marqueePtrId = null;
+      let marqueePrimed = false; // pointerdown happened, waiting to exceed threshold
+      let marqueeStartPt = null; // container point at pointerdown
+      function ptrToLatLng(ev){
+        try { const r = c.getBoundingClientRect(); return map.containerPointToLatLng([ev.clientX - r.left, ev.clientY - r.top]); } catch(_) { return null; }
+      }
+      function onPtrDown(ev){
+        if (!marqueePointerEnabled) return;
+        if (!isSelectMode) return;
+        if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        const ll = ptrToLatLng(ev);
+        if (!ll) return;
+        marqueePtrId = ev.pointerId;
+        marqueePrimed = true;
+        marqueeActive = false; // not started yet until threshold passed
+        marqueeMoved = false;
+        marqueeStart = ll;
+        marqueeStartPt = map.latLngToContainerPoint(ll);
+      }
+      function onPtrMove(ev){
+        if (!marqueePointerEnabled) return;
+        if (!isSelectMode) return;
+        if (marqueePtrId == null || ev.pointerId !== marqueePtrId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        const ll = ptrToLatLng(ev);
+        if (!ll) return;
+        const p1 = map.latLngToContainerPoint(ll);
+        const dx = Math.abs(p1.x - (marqueeStartPt ? marqueeStartPt.x : p1.x));
+        const dy = Math.abs(p1.y - (marqueeStartPt ? marqueeStartPt.y : p1.y));
+        const movedEnough = Math.max(dx, dy) >= MARQUEE_THRESHOLD_PX;
+        if (!marqueeActive) {
+          if (!marqueePrimed) return;
+          if (!movedEnough) return; // still a tap
+          // Start marquee now
+          marqueeActive = true;
+          marqueeMoved = true;
+          map.dragging.disable();
+          marqueeRect = L.rectangle([marqueeStart, marqueeStart], {
+            color: '#00aaff',
+            weight: 2,
+            dashArray: '6,4',
+            fillColor: '#00aaff',
+            fillOpacity: 0.1,
+            interactive: false
+          }).addTo(map);
+        }
+        // Update rectangle while dragging
+        if (marqueeRect) {
+          const bounds = L.latLngBounds(marqueeStart, ll);
+          marqueeRect.setBounds(bounds);
+        }
+      }
+      function endPtrGesture(){
+        // Re-enable drag only if we had started marquee (we never disabled otherwise)
+        if (marqueeActive) map.dragging.enable();
+        if (marqueeActive && marqueeMoved && marqueeRect) {
+          const bounds = marqueeRect.getBounds();
+          while (selectedUnits.length) {
+            const m = selectedUnits.pop();
+            m.isSelected = false;
+            if (m._icon) m._icon.classList.remove('unit-selected');
+          }
+          allMarkers.forEach(m => {
+            if (bounds.contains(m.getLatLng())) {
+              m.isSelected = true;
+              if (m._icon) m._icon.classList.add('unit-selected');
+              selectedUnits.push(m);
+            }
+          });
+          // Suppress only the immediate synthetic click; auto-clear soon so next real tap works
+          suppressNextMapClick = true;
+          try { setTimeout(function(){ suppressNextMapClick = false; }, 250); } catch(_){}
+        }
+        if (marqueeRect) { map.removeLayer(marqueeRect); marqueeRect = null; }
+        marqueeActive = false;
+        marqueeMoved = false;
+        marqueeStart = null;
+        marqueePrimed = false;
+        marqueePtrId = null;
+        marqueeStartPt = null;
+      }
+      function onPtrUp(ev){
+        if (!marqueePointerEnabled) return;
+        if (!isSelectMode) return;
+        if (marqueePtrId == null || ev.pointerId !== marqueePtrId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        // If we never started marquee, treat it like a tap (let map click handler run)
+        endPtrGesture();
+      }
+      function onPtrCancel(ev){
+        if (!marqueePointerEnabled) return;
+        if (!isSelectMode) return;
+        if (marqueePtrId == null || ev.pointerId !== marqueePtrId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        endPtrGesture();
+      }
+      try { c.addEventListener('pointerdown', onPtrDown, { passive: false }); } catch(_){}
+      try { c.addEventListener('pointermove', onPtrMove, { passive: false }); } catch(_){}
+      try { c.addEventListener('pointerup', onPtrUp, { passive: false }); } catch(_){}
+      try { c.addEventListener('pointercancel', onPtrCancel, { passive: false }); } catch(_){}
+    })();
 
     // Geodesic destination from center by distance (m) and bearing (deg)
     function destinationPoint(center, distance, bearingDeg) {
@@ -1463,6 +1953,274 @@
       requestAnimationFrame(step);
     });
 
+    // Animate-on-draw gesture (touch)
+    map.on('touchstart', function(e) {
+      if (!animDrawActive || !animDrawUnitType) return;
+      if (!e.originalEvent) return;
+      try { e.originalEvent.preventDefault(); } catch(_){}
+      try { if (L && L.DomEvent) L.DomEvent.stop(e.originalEvent); } catch(_){}
+      const touch = e.originalEvent.touches && e.originalEvent.touches[0]
+        ? e.originalEvent.touches[0]
+        : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
+      if (!touch) return;
+      const rect = map.getContainer().getBoundingClientRect();
+      const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
+      if (!latlng) return;
+      animDrawPoints = [latlng];
+      // Lock interactions during gesture
+      map.dragging.disable();
+      map.touchZoom && map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+      map.boxZoom.disable();
+      map.keyboard.disable();
+      if (map.tap) map.tap.disable();
+      if (animDrawTempLine) { try { tempDrawLayer.removeLayer(animDrawTempLine); } catch(_) {} animDrawTempLine = null; }
+      animDrawTempLine = L.polyline(animDrawPoints, { color: '#ffffff', weight: 3, opacity: 0.1, temp: true }).addTo(tempDrawLayer);
+    });
+
+    map.on('touchmove', function(e) {
+      if (!animDrawActive || animDrawPoints.length === 0) return;
+      if (!e.originalEvent) return;
+      try { e.originalEvent.preventDefault(); } catch(_){}
+      try { if (L && L.DomEvent) L.DomEvent.stop(e.originalEvent); } catch(_){}
+      const touch = e.originalEvent.touches && e.originalEvent.touches[0]
+        ? e.originalEvent.touches[0]
+        : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
+      if (!touch) return;
+      const rect = map.getContainer().getBoundingClientRect();
+      const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
+      if (!latlng) return;
+      animDrawPoints.push(latlng);
+      if (animDrawTempLine) animDrawTempLine.setLatLngs(animDrawPoints);
+    });
+
+    map.on('touchend', function(e) {
+      if (!animDrawActive || animDrawPoints.length === 0) return;
+      // Re-enable interactions
+      map.dragging.enable();
+      map.touchZoom && map.touchZoom.enable();
+      map.doubleClickZoom.enable();
+      map.scrollWheelZoom.enable();
+      map.boxZoom.enable();
+      map.keyboard.enable();
+      if (map.tap) map.tap.enable();
+      // Remove the drawn path immediately (disappear)
+      if (animDrawTempLine) { try { tempDrawLayer.removeLayer(animDrawTempLine); } catch(_) {} animDrawTempLine = null; }
+      const pts = animDrawPoints.slice();
+      animDrawPoints = [];
+      if (pts.length < 2) return;
+      // Create a temporary marker for the chosen unit
+      let icon = null;
+      if (animDrawUnitType === 'tank') icon = tankIcon;
+      if (animDrawUnitType === 'uav') icon = uavIcon;
+      if (animDrawUnitType === 'jetfighter') icon = jetfighterIcon;
+      if (animDrawUnitType === 'helicopter') icon = helicopterIcon;
+      if (animDrawUnitType === 'submarine') icon = submarineIcon;
+      if (animDrawUnitType === 'battleship') icon = battleshipIcon;
+      if (!icon) return;
+      const animMarker = L.marker(pts[0], { icon: icon, draggable: true }).addTo(map);
+      animMarker.unitType = animDrawUnitType;
+      animMarker.isSelected = false;
+      animMarker._headingDeg = 0;
+      animMarker.bindTooltip('<span class="heading-tip">0°</span>', {permanent: false, direction: 'top', sticky: true, opacity: 0.9, offset: [0, -12], className: 'heading-tooltip'});
+      // Enable selection by click in select mode
+      animMarker.on('click', function(ev) {
+        if (!isSelectMode) return;
+        if (ev && ev.originalEvent && L && L.DomEvent) { try { L.DomEvent.stopPropagation(ev); } catch(_){} }
+        toggleUnitSelection(animMarker);
+        suppressNextMapClick = false;
+      });
+      // Drag rotation for supported units
+      attachDirectionalDrag(animMarker);
+      allMarkers.push(animMarker);
+      // Allow undo of the animated unit creation
+      drawHistory.push(animMarker);
+      const undoImgAnim = document.getElementById('undo-btn-img');
+      if (undoImgAnim) undoImgAnim.style.opacity = '1';
+      // Follow path animation
+      const segDist = [];
+      let total = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const d = map.distance(pts[i-1], pts[i]);
+        segDist.push(d);
+        total += d;
+      }
+      const duration = 5000;
+      const startTime = performance.now();
+      function step(now) {
+        let t = (now - startTime) / duration;
+        if (t < 0) t = 0; if (t > 1) t = 1;
+        const targetDist = total * t;
+        let acc = 0;
+        let si = 0;
+        while (si < segDist.length && acc + segDist[si] < targetDist) { acc += segDist[si]; si++; }
+        if (si >= segDist.length) { animMarker.setLatLng(pts[pts.length - 1]); return; }
+        const a = pts[si];
+        const b = pts[si + 1];
+        const segLen = segDist[si];
+        const segT = segLen > 0 ? (targetDist - acc) / segLen : 0;
+        const lat = a.lat + (b.lat - a.lat) * segT;
+        const lng = a.lng + (b.lng - a.lng) * segT;
+        animMarker.setLatLng([lat, lng]);
+        const angleRad = Math.atan2(b.lng - a.lng, b.lat - a.lat);
+        const angleDeg = angleRad * 180 / Math.PI;
+        animMarker._headingDeg = angleDeg;
+        const tStr = animMarker._icon && animMarker._icon.style.transform || '';
+        const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
+        if (animMarker._icon) {
+          animMarker._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
+          animMarker._icon.style.transformOrigin = '16px 16px';
+        }
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+
+    // Animate-on-draw gesture (Pointer Events) for touch/pen on Windows and modern browsers
+    (function(){
+      const c = map.getContainer();
+      let animPointerId = null;
+      function getLatLngFromPointer(ev){
+        try {
+          const rect = c.getBoundingClientRect();
+          return map.containerPointToLatLng([ev.clientX - rect.left, ev.clientY - rect.top]);
+        } catch(_) { return null; }
+      }
+      function onPtrDown(ev){
+        // Only handle non-mouse pointers here to avoid double-handling with mouse handlers
+        if (ev.pointerType === 'mouse') return;
+        if (!animDrawActive || !animDrawUnitType) return;
+        if (ev.isPrimary === false) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        const ll = getLatLngFromPointer(ev);
+        if (!ll) return;
+        animPointerId = ev.pointerId;
+        animDrawPoints = [ll];
+        // Lock interactions during the draw gesture
+        map.dragging.disable();
+        map.touchZoom && map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        if (map.tap) map.tap.disable();
+        if (animDrawTempLine) { try { tempDrawLayer.removeLayer(animDrawTempLine); } catch(_) {} animDrawTempLine = null; }
+        animDrawTempLine = L.polyline(animDrawPoints, { color: '#ffffff', weight: 3, opacity: 0.1, temp: true }).addTo(tempDrawLayer);
+      }
+      function onPtrMove(ev){
+        if (ev.pointerType === 'mouse') return;
+        if (!animDrawActive || animPointerId == null || ev.pointerId !== animPointerId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        const ll = getLatLngFromPointer(ev);
+        if (!ll) return;
+        animDrawPoints.push(ll);
+        if (animDrawTempLine) animDrawTempLine.setLatLngs(animDrawPoints);
+      }
+      function finalizeAnimGesture(){
+        // Re-enable interactions
+        map.dragging.enable();
+        map.touchZoom && map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+        if (map.tap) map.tap.enable();
+        // Remove the drawn path immediately (disappear)
+        if (animDrawTempLine) { try { tempDrawLayer.removeLayer(animDrawTempLine); } catch(_) {} animDrawTempLine = null; }
+        const pts = animDrawPoints.slice();
+        animDrawPoints = [];
+        if (!pts || pts.length < 2) return;
+        // Create a temporary marker for the chosen unit
+        let icon = null;
+        if (animDrawUnitType === 'tank') icon = tankIcon;
+        if (animDrawUnitType === 'uav') icon = uavIcon;
+        if (animDrawUnitType === 'jetfighter') icon = jetfighterIcon;
+        if (animDrawUnitType === 'helicopter') icon = helicopterIcon;
+        if (animDrawUnitType === 'submarine') icon = submarineIcon;
+        if (animDrawUnitType === 'battleship') icon = battleshipIcon;
+        if (!icon) return;
+        const animMarker = L.marker(pts[0], { icon: icon, draggable: true }).addTo(map);
+        animMarker.unitType = animDrawUnitType;
+        animMarker.isSelected = false;
+        animMarker._headingDeg = 0;
+        animMarker.bindTooltip('<span class="heading-tip">0°</span>', {permanent: false, direction: 'top', sticky: true, opacity: 0.9, offset: [0, -12], className: 'heading-tooltip'});
+        // Enable selection by click in select mode
+        animMarker.on('click', function(ev) {
+          if (!isSelectMode) return;
+          if (ev && ev.originalEvent && L && L.DomEvent) { try { L.DomEvent.stopPropagation(ev); } catch(_){} }
+          toggleUnitSelection(animMarker);
+          suppressNextMapClick = false;
+        });
+        // Drag rotation for supported units
+        attachDirectionalDrag(animMarker);
+        allMarkers.push(animMarker);
+        // Allow undo of the animated unit creation
+        drawHistory.push(animMarker);
+        const undoImgAnim = document.getElementById('undo-btn-img');
+        if (undoImgAnim) undoImgAnim.style.opacity = '1';
+        // Follow path animation
+        const segDist = [];
+        let total = 0;
+        for (let i = 1; i < pts.length; i++) {
+          const d = map.distance(pts[i-1], pts[i]);
+          segDist.push(d);
+          total += d;
+        }
+        const duration = 5000;
+        const startTime = performance.now();
+        function step(now) {
+          let t = (now - startTime) / duration;
+          if (t < 0) t = 0; if (t > 1) t = 1;
+          const targetDist = total * t;
+          let acc = 0;
+          let si = 0;
+          while (si < segDist.length && acc + segDist[si] < targetDist) { acc += segDist[si]; si++; }
+          if (si >= segDist.length) { animMarker.setLatLng(pts[pts.length - 1]); return; }
+          const a = pts[si];
+          const b = pts[si + 1];
+          const segLen = segDist[si];
+          const segT = segLen > 0 ? (targetDist - acc) / segLen : 0;
+          const lat = a.lat + (b.lat - a.lat) * segT;
+          const lng = a.lng + (b.lng - a.lng) * segT;
+          animMarker.setLatLng([lat, lng]);
+          const angleRad = Math.atan2(b.lng - a.lng, b.lat - a.lat);
+          const angleDeg = angleRad * 180 / Math.PI;
+          animMarker._headingDeg = angleDeg;
+          const tStr = animMarker._icon && animMarker._icon.style.transform || '';
+          const cleaned = tStr.replace(/rotate\([^)]*\)/, '').trim();
+          if (animMarker._icon) {
+            animMarker._icon.style.transform = `${cleaned} rotate(${angleDeg}deg)`;
+            animMarker._icon.style.transformOrigin = '16px 16px';
+          }
+          if (t < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      }
+      function onPtrUp(ev){
+        if (ev.pointerType === 'mouse') return;
+        if (animPointerId == null || ev.pointerId !== animPointerId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        animPointerId = null;
+        finalizeAnimGesture();
+      }
+      function onPtrCancel(ev){
+        if (ev.pointerType === 'mouse') return;
+        if (animPointerId == null || ev.pointerId !== animPointerId) return;
+        try { ev.preventDefault(); } catch(_){}
+        try { ev.stopPropagation(); } catch(_){}
+        animPointerId = null;
+        finalizeAnimGesture();
+      }
+      try { c.addEventListener('pointerdown', onPtrDown, { passive: false }); } catch(_){}
+      try { c.addEventListener('pointermove', onPtrMove, { passive: false }); } catch(_){}
+      try { c.addEventListener('pointerup', onPtrUp, { passive: false }); } catch(_){}
+      try { c.addEventListener('pointercancel', onPtrCancel, { passive: false }); } catch(_){}
+    })();
+
     // Memorize and go to location logic
     // Load memorized locations from localStorage
     function loadMemorized() {
@@ -1561,28 +2319,27 @@
     // Preload tiles for a given center and zoom
     function preloadTiles(center, zoom) {
       return new Promise(resolve => {
-        // Calculate tile coordinates for the center
-        var tileSize = 256;
-        var crs = map.options.crs;
-        var tileCoords = crs.project(center);
-        var scale = crs.scale(zoom);
-        var tileX = Math.floor(tileCoords.x * scale / tileSize);
-        var tileY = Math.floor(tileCoords.y * scale / tileSize);
-
-        // Preload a 3x3 grid of tiles around the center
-        var promises = [];
-        for (var dx = -1; dx <= 1; dx++) {
-          for (var dy = -1; dy <= 1; dy++) {
-            var x = tileX + dx;
-            var y = tileY + dy;
-            var url = map._layers[Object.keys(map._layers)[0]]._url
-              .replace('{z}', zoom)
-              .replace('{x}', x)
-              .replace('{y}', y);
-            promises.push(fetch(url).catch(()=>{}));
+        try {
+          const layer = window.__baseTileLayer;
+          const tileSize = layer && layer.getTileSize ? layer.getTileSize().x : 256;
+          const p = map.project(center, zoom);
+          const tileX = Math.floor(p.x / tileSize);
+          const tileY = Math.floor(p.y / tileSize);
+          const max = 1 << zoom;
+          const promises = [];
+          for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+              const x = ((tileX + dx) % max + max) % max; // wrap X
+              const y = Math.min(max - 1, Math.max(0, tileY + dy));
+              const url = layer ? layer.getTileUrl({x, y, z: zoom}) : '';
+              if (!url) continue;
+              promises.push(fetch(url, { cache: 'force-cache' }).catch(function(){}));
+            }
           }
+          Promise.all(promises).then(function(){ setTimeout(resolve, 150); });
+        } catch (_) {
+          resolve();
         }
-        Promise.all(promises).then(() => setTimeout(resolve, 200)); // Wait a bit for browser cache
       });
     }
     
@@ -1780,15 +2537,24 @@
 
     // Palette visibility is handled inside draw start/stop and button handler
 
-    // Pen color selection logic
-    var penColor = "#ff0000"; // Default to red
+    // Pen color selection logic (persisted)
+    var penColor = (function(){ try { return localStorage.getItem('penColor') || '#ff0000'; } catch(_){ return '#ff0000'; } })();
+    function updatePaletteSelection(){
+      try {
+        var buttons = document.querySelectorAll('.palette-color-btn');
+        buttons.forEach(function(b){ b.style.outline = ''; });
+        buttons.forEach(function(b){ if (b.getAttribute('data-color') === penColor) { b.style.outline = '2px solid #333'; } });
+      } catch(_){}
+    }
     document.querySelectorAll('.palette-color-btn').forEach(function(btn) {
       btn.onclick = function() {
         penColor = btn.getAttribute('data-color');
-        document.querySelectorAll('.palette-color-btn').forEach(b => b.style.outline = '');
-        btn.style.outline = '2px solid #333';
+        try { localStorage.setItem('penColor', penColor); } catch(_){ }
+        updatePaletteSelection();
       };
     });
+    // Initialize palette selection on load
+    try { updatePaletteSelection(); } catch(_){}
 
     // penColor is applied in mouse/touch drawing handlers above
   </script>
