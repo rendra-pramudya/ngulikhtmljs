@@ -36,7 +36,12 @@
                     <select id="objectType" style="flex: 1;">
                         <option value="tank">Tank</option>
                         <option value="airplane">Airplane</option>
+                        <option value="custom">Custom URL</option>
                     </select>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <label for="modelUrl" style="min-width: 90px;">Model URL:</label>
+                    <input type="text" id="modelUrl" placeholder="https://... .glb or .gltf" style="width:160px;">
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <label for="longitude" style="min-width: 90px;">Longitude:</label>
@@ -47,8 +52,20 @@
                     <input type="number" id="latitude" placeholder="Latitude" step="0.0001" style="width:100px;">
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
+                    <label for="altitude" style="min-width: 90px;">Altitude (m):</label>
+                    <input type="number" id="altitude" placeholder="0 (ground)" step="1" style="width:100px;">
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
                     <button type="button" onclick="add3DObject()">Add 3D Object</button>
                     <button type="button" onclick="goToLatLon()">Go To Location</button>
+                </div>
+                <hr style="border: none; border-top: 1px solid #ccc; margin: 4px 0;" />
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <label for="searchText" style="min-width: 90px;">Search:</label>
+                    <input type="text" id="searchText" placeholder="Place or address" style="width:160px;">
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" onclick="searchAndGo()">Search & Go</button>
                 </div>
             </form>
         </div>
@@ -64,6 +81,16 @@
             animation: false
         });
 
+        // Make sure the Base Layer Picker also selects ArcGIS World Imagery by default
+        if (viewer.baseLayerPicker && viewer.baseLayerPicker.viewModel) {
+            const vModel = viewer.baseLayerPicker.viewModel;
+            const models = vModel.imageryProviderViewModels || [];
+            const arcgisVM = models.find(vm => /arcgis/i.test(vm.name) && /imagery/i.test(vm.name));
+            if (arcgisVM) {
+                vModel.selectedImagery = arcgisVM;
+            }
+        }
+
         // Example: Add a marker (billboard)
         viewer.entities.add({
             position: Cesium.Cartesian3.fromDegrees(106.8272, -6.1751), // Jakarta
@@ -77,7 +104,7 @@
 
         // Example: Fly to a location
         viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(106.8272, -6.1751, 1000000)
+            destination: Cesium.Cartesian3.fromDegrees(106.8272, -6.1751, 100000)
         });
 
         // Add 3D Object Interface
@@ -86,41 +113,142 @@
             const type = document.querySelector('#toolbar #objectType').value;
             const lon = parseFloat(document.querySelector('#toolbar #longitude').value);
             const lat = parseFloat(document.querySelector('#toolbar #latitude').value);
+            const altInput = parseFloat(document.querySelector('#toolbar #altitude').value);
+            const customUrl = document.querySelector('#toolbar #modelUrl').value.trim();
             if (isNaN(lon) || isNaN(lat)) {
                 alert('Please enter valid longitude and latitude.');
                 return;
             }
-            let entityOptions = {
-                position: Cesium.Cartesian3.fromDegrees(lon, lat),
-                name: type.charAt(0).toUpperCase() + type.slice(1)
-            };
-            if (type === 'tank') {
-                entityOptions.model = {
-                    uri: 'https://assets.cesium.com/14622/scene.gltf', // Example tank model
-                    minimumPixelSize: 64,
-                    maximumScale: 200
-                };
-            } else if (type === 'airplane') {
-                entityOptions.model = {
-                    uri: 'https://assets.cesium.com/14625/scene.gltf', // Example airplane model
-                    minimumPixelSize: 64,
-                    maximumScale: 200
-                };
+            // Choose public sample models (no Cesium ion token required)
+            const defaultHeight = type === 'airplane' ? 1000 : 0; // lift planes so they aren't on ground
+            const height = isNaN(altInput) ? defaultHeight : altInput;
+            let modelUri = '';
+            switch (type) {
+                case 'tank':
+                    modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/master/Apps/SampleData/models/CesiumTank/CesiumTank.glb';
+                    break;
+                case 'airplane':
+                    modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/master/Apps/SampleData/models/CesiumAir/Cesium_Air.glb';
+                    break;
+                case 'custom':
+                    if (!customUrl) {
+                        alert('Please enter a model URL for Custom URL type (.glb or .gltf).');
+                        return;
+                    }
+                    modelUri = customUrl;
+                    break;
+                default:
+                    modelUri = 'https://raw.githubusercontent.com/CesiumGS/cesium/master/Apps/SampleData/models/CesiumMilkTruck/CesiumMilkTruck.glb';
             }
-            viewer.entities.add(entityOptions);
+
+            const entityOptions = {
+                position: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+                name: type.charAt(0).toUpperCase() + type.slice(1),
+                model: {
+                    uri: modelUri,
+                    minimumPixelSize: 64,
+                    maximumScale: 200
+                }
+            };
+
+            const entity = viewer.entities.add(entityOptions);
+            // Fly to the entity so it's visible immediately
+            viewer.flyTo(entity).catch(() => {
+                // fallback camera move if flyTo fails
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(lon, lat, Math.max(500, height + 500))
+                });
+            });
         }
 
         function goToLatLon() {
             const lon = parseFloat(document.querySelector('#toolbar #longitude').value);
             const lat = parseFloat(document.querySelector('#toolbar #latitude').value);
+            const alt = parseFloat(document.querySelector('#toolbar #altitude').value);
             if (isNaN(lon) || isNaN(lat)) {
                 alert('Please enter valid longitude and latitude.');
                 return;
             }
             viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(lon, lat, 10000)
+                destination: Cesium.Cartesian3.fromDegrees(lon, lat, isNaN(alt) ? 10000 : alt)
             });
         }
+
+        // Search by text using OSM Nominatim and fly to the first result
+        async function searchAndGo() {
+            const query = document.querySelector('#toolbar #searchText').value.trim();
+            if (!query) {
+                alert('Please enter a place name or address to search.');
+                return;
+            }
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) {
+                    alert('No results found for: ' + query);
+                    return;
+                }
+                const first = data[0];
+                const lat = parseFloat(first.lat);
+                const lon = parseFloat(first.lon);
+                const bbox = first.boundingbox; // [south, north, west, east]
+                if (bbox && bbox.length === 4) {
+                    const south = parseFloat(bbox[0]);
+                    const north = parseFloat(bbox[1]);
+                    const west = parseFloat(bbox[2]);
+                    const east = parseFloat(bbox[3]);
+                    const rect = Cesium.Rectangle.fromDegrees(west, south, east, north);
+                    viewer.camera.flyTo({ destination: rect });
+                } else if (!isNaN(lat) && !isNaN(lon)) {
+                    viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(lon, lat, 12000), duration: 1.5 });
+                } else {
+                    alert('Could not parse search result.');
+                }
+            } catch (err) {
+                console.error('Search error:', err);
+                alert('Search failed. Please try again later.');
+            }
+        }
+
+        // Auto-fill lon/lat/alt while moving the mouse over the globe
+        function setupLiveLonLatAltFromMouse() {
+            const lonInput = document.querySelector('#toolbar #longitude');
+            const latInput = document.querySelector('#toolbar #latitude');
+            const altInput = document.querySelector('#toolbar #altitude');
+            if (!lonInput || !latInput || !altInput) return;
+
+            const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+            handler.setInputAction((movement) => {
+                if (!movement || !movement.endPosition) return;
+                // Prefer picking against terrain for accurate height; fallback to ellipsoid
+                let cartesian = null;
+                const ray = viewer.camera.getPickRay(movement.endPosition);
+                if (ray) {
+                    cartesian = viewer.scene.globe.pick(ray, viewer.scene);
+                }
+                if (!cartesian) {
+                    cartesian = viewer.camera.pickEllipsoid(
+                        movement.endPosition,
+                        viewer.scene.globe.ellipsoid
+                    );
+                }
+                if (!cartesian) return;
+                const carto = Cesium.Cartographic.fromCartesian(cartesian);
+                const lonDeg = Cesium.Math.toDegrees(carto.longitude);
+                const latDeg = Cesium.Math.toDegrees(carto.latitude);
+                // carto.height is height above the ellipsoid when using globe.pick; may be 0 if ellipsoid
+                let h = Cesium.defined(carto.height) ? carto.height : 0;
+
+                lonInput.value = lonDeg.toFixed(6);
+                latInput.value = latDeg.toFixed(6);
+                altInput.value = h.toFixed(1);
+            }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+        }
+
+        // Initialize the live updater
+        setupLiveLonLatAltFromMouse();
     </script>
 </body>
 </html>
