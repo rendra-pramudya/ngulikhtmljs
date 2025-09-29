@@ -241,7 +241,7 @@
     </div>
   </div>
 
-  <div class="control-panel" id="tools-panel" style="top: 235px; right: 70px; width: 90px;">
+  <div class="control-panel" id="tools-panel" style="top: 235px; right: 70px; width: 90px; display: none;">
     <style>
       /* Tools grid layout: 2 columns x up to 10 rows */
       #tools-panel .tools-grid {
@@ -538,6 +538,28 @@
       if (moveImg) moveImg.src = 'image/IconMoveG.jpg';
     }
 
+    // Tools panel visibility controller (decoupled from tool state)
+    let toolsPanelOpen = false;
+    function setToolsPanelVisible(show) {
+      const panel = document.getElementById('tools-panel');
+      if (!panel) return;
+      panel.style.display = show ? 'block' : 'none';
+      toolsPanelOpen = !!show;
+    }
+    // Optional: close when clicking outside of the panel and the Draw button
+    document.addEventListener('click', function(e){
+      try {
+        if (!toolsPanelOpen) return;
+        const panel = document.getElementById('tools-panel');
+        const btn = document.getElementById('draw-btn');
+        if (!panel || !btn) return;
+        const t = e.target;
+        const insidePanel = panel === t || panel.contains(t);
+        const onButton = btn === t || btn.contains(t);
+        if (!insidePanel && !onButton) setToolsPanelVisible(false);
+      } catch(_){}
+    }, { passive: true });
+
     // Helper: determine if any tool (tools panel or drawing) is active
     function isAnyToolActive() {
       return !!placeMode || !!animDrawActive || !!isSelectMode || !!measuring || !!drawingMode;
@@ -562,10 +584,6 @@
       // Stop drawing
       if (drawingMode) {
         try { stopFreehandDraw(); } catch(_) {}
-        const drawImg = document.getElementById('draw-btn-img');
-        if (drawImg) { drawImg.src = 'image/IconDrawingG.jpg'; drawImg.alt = 'Freehand Draw'; }
-        const drawBtn = document.getElementById('draw-btn');
-        if (drawBtn) drawBtn.style.backgroundColor = '#95a5a6';
         const palettePanel = document.getElementById('color-palette-panel');
         if (palettePanel) palettePanel.style.display = 'none';
       }
@@ -604,6 +622,13 @@
       const current = getActiveRadioTool();
       if (current === tool) {
         // Toggle off if already active
+        // Special-case: if toggling off Draw via the Draw button, restore its UI here
+        if (tool === 'draw') {
+          const img = document.getElementById('draw-btn-img');
+          if (img) { img.src = 'image/IconDrawingG.jpg'; img.alt = 'Freehand Draw'; }
+          const btn = document.getElementById('draw-btn');
+          if (btn) btn.style.backgroundColor = '#95a5a6';
+        }
         deactivateAllRadioTools();
         return;
       }
@@ -950,6 +975,13 @@
     // Freehand drawing functions
     function startFreehandDraw() {
       drawingMode = true;
+      // Ensure draw button UI shows active state (L) regardless of who started drawing
+      try {
+        const img = document.getElementById('draw-btn-img');
+        if (img) { img.src = 'image/IconDrawingL.jpg'; img.alt = 'Stop Drawing'; }
+        const btn = document.getElementById('draw-btn');
+        if (btn) btn.style.backgroundColor = '#e74c3c';
+      } catch(_){}
         // Exit select mode to avoid conflicts with marquee handlers
         if (typeof isSelectMode !== 'undefined' && isSelectMode) {
           isSelectMode = false;
@@ -973,6 +1005,13 @@
       drawingMode = false;
       isDrawing = false;
       currentPath = [];
+      // Ensure draw button UI returns to inactive (G) regardless of who stopped drawing
+      try {
+        const img = document.getElementById('draw-btn-img');
+        if (img) { img.src = 'image/IconDrawingG.jpg'; img.alt = 'Freehand Draw'; }
+        const btn = document.getElementById('draw-btn');
+        if (btn) btn.style.backgroundColor = '#95a5a6';
+      } catch(_){}
   map.getContainer().style.cursor = '';
       map.dragging.enable();
       map.touchZoom && map.touchZoom.enable();
@@ -1168,7 +1207,19 @@
       }
 
     // Button logic
-    document.getElementById('draw-btn').onclick = function() { setRadioTool('draw'); };
+    // Draw button now toggles the tools panel visibility; opening also activates Draw mode
+    (function(){
+      const drawBtn = document.getElementById('draw-btn');
+      if (!drawBtn) return;
+      drawBtn.onclick = function() {
+        const wasOpen = !!(typeof toolsPanelOpen !== 'undefined' && toolsPanelOpen);
+        setToolsPanelVisible(!wasOpen);
+        if (!wasOpen) {
+          if (getActiveRadioTool() !== 'draw') setRadioTool('draw');
+        }
+        // If closing, do not toggle Draw off; visibility is decoupled from tool state
+      };
+    })();
     
     document.getElementById('clear-btn').onclick = function() {
       clearAllDrawings();
@@ -1427,13 +1478,9 @@
       if (typeof animDrawActive !== 'undefined' && animDrawActive) {
         try { clearAnimDrawMode(); } catch(_){}
       }
-      // Exit freehand drawing if active
+      // Exit freehand drawing if active (do not touch Draw button UI)
       if (typeof drawingMode !== 'undefined' && drawingMode) {
-        try { stopFreehandDraw(); } catch(_){}
-        const drawImg = document.getElementById('draw-btn-img');
-        if (drawImg) drawImg.src = 'image/IconDrawingG.jpg';
-        const drawBtn = document.getElementById('draw-btn');
-        if (drawBtn) drawBtn.style.backgroundColor = '#95a5a6';
+        try { stopFreehandDraw(); } catch(_){ }
         const palettePanel = document.getElementById('color-palette-panel');
         if (palettePanel) palettePanel.style.display = 'none';
       }
@@ -1533,10 +1580,6 @@
       }
       if (drawingMode) {
         stopFreehandDraw();
-        const drawImg = document.getElementById('draw-btn-img');
-        if (drawImg) drawImg.src = 'image/IconDrawingG.jpg';
-        const drawBtn = document.getElementById('draw-btn');
-        if (drawBtn) drawBtn.style.backgroundColor = '#95a5a6';
         const palettePanel = document.getElementById('color-palette-panel');
         if (palettePanel) palettePanel.style.display = 'none';
       }
@@ -1566,10 +1609,26 @@
     document.getElementById('submarine-btn').onclick = function() { setRadioTool('anim:submarine'); };
     document.getElementById('battleship-btn').onclick = function() { setRadioTool('anim:battleship'); };
   // Place-only tools
-  var saBtn = document.getElementById('soldier-action-btn'); if (saBtn) saBtn.onclick = function(){ setPlaceMode('soldier-action'); };
-  var ssBtn = document.getElementById('soldier-standing-btn'); if (ssBtn) ssBtn.onclick = function(){ setPlaceMode('soldier-standing'); };
-  var exBtn = document.getElementById('explosion-btn'); if (exBtn) exBtn.onclick = function(){ setPlaceMode('explosion'); };
-  var fpBtn = document.getElementById('flashpoint-btn'); if (fpBtn) fpBtn.onclick = function(){ setPlaceMode('flashpoint'); };
+  var saBtn = document.getElementById('soldier-action-btn');
+  if (saBtn) saBtn.onclick = function(){
+    if (typeof placeMode !== 'undefined' && placeMode === 'soldier-action') { clearPlaceMode(); }
+    else { setPlaceMode('soldier-action'); }
+  };
+  var ssBtn = document.getElementById('soldier-standing-btn');
+  if (ssBtn) ssBtn.onclick = function(){
+    if (typeof placeMode !== 'undefined' && placeMode === 'soldier-standing') { clearPlaceMode(); }
+    else { setPlaceMode('soldier-standing'); }
+  };
+  var exBtn = document.getElementById('explosion-btn');
+  if (exBtn) exBtn.onclick = function(){
+    if (typeof placeMode !== 'undefined' && placeMode === 'explosion') { clearPlaceMode(); }
+    else { setPlaceMode('explosion'); }
+  };
+  var fpBtn = document.getElementById('flashpoint-btn');
+  if (fpBtn) fpBtn.onclick = function(){
+    if (typeof placeMode !== 'undefined' && placeMode === 'flashpoint') { clearPlaceMode(); }
+    else { setPlaceMode('flashpoint'); }
+  };
 
     // Lock toggle button logic
     const lockBtn = document.getElementById('lock-map-btn');
@@ -2636,10 +2695,6 @@
       // Exit freehand drawing
       if (typeof drawingMode !== 'undefined' && drawingMode) {
         stopFreehandDraw();
-        const drawImg = document.getElementById('draw-btn-img');
-        if (drawImg) drawImg.src = 'image/IconDrawingG.jpg';
-        const drawBtn = document.getElementById('draw-btn');
-        if (drawBtn) drawBtn.style.backgroundColor = '#95a5a6';
         const palettePanel = document.getElementById('color-palette-panel');
         if (palettePanel) palettePanel.style.display = 'none';
       }
