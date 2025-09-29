@@ -241,33 +241,77 @@
     </div>
   </div>
 
-  <div class="control-panel" id="tools-panel" style="top: 235px; right: 70px; width: 32px;">
-    <div class="location-buttons">
-      <button id="measure-btn" style="padding:0;border:none;background:none;">
-        <img id="measure-btn-img" src="image/IconRulerG.jpg" alt="Measure Distance" style="width:32px;height:32px;vertical-align:middle;">
-      </button>
-      <button id="tank-btn" style="padding:0;border:none;background:none;">
-        <img src="image/IconTankG.jpg" alt="Tank Icon" style="width:32px;height:32px;vertical-align:middle;">
-      </button>
-      <button id="uav-btn" style="padding:0;border:none;background:none;">
-        <img src="image/IconUAVG.jpg" alt="UAV Icon" style="width:32px;height:32px;vertical-align:middle;">
-      </button>
-      <button id="jetfighter-btn" style="padding:0;border:none;background:none;">
-        <img src="image/IconJetFighterG.jpg" alt="JetFighter Icon" style="width:32px;height:32px;vertical-align:middle;">
-      </button>
-      <button id="helicopter-btn" style="padding:0;border:none;background:none;">
-        <img src="image/IconHelicopterG.jpg" alt="Helicopter Icon" style="width:32px;height:32px;vertical-align:middle;">
-      </button>
-      <button id="submarine-btn" style="padding:0;border:none;background:none;">
-        <img src="image/IconSubmarineG.jpg" alt="Submarine Icon" style="width:32px;height:32px;vertical-align:middle;">
-      </button>
-      <button id="battleship-btn" style="padding:0;border:none;background:none;">
-        <img src="image/IconBattleshipG.jpg" alt="Battleship Icon" style="width:32px;height:32px;vertical-align:middle;">
-      </button>
-      <button id="select-mode-btn" title="Select units" style="padding:0;border:none;background:none;width:32px;height:32px;line-height:32px;text-align:center;">
-        <img id="select-mode-btn-img" src="image/IconSelectRectangleG.jpg" alt="Select Units" style="width:32px;height:32px;vertical-align:middle;">
-      </button>
-  
+  <div class="control-panel" id="tools-panel" style="top: 235px; right: 70px; width: 90px;">
+    <style>
+      /* Tools grid layout: 2 columns x up to 10 rows */
+      #tools-panel .tools-grid {
+        display: grid;
+        grid-template-columns: 45px 45px;
+        grid-auto-rows: 48px;
+        gap: 2px 2px;
+        align-items: center;
+        justify-items: center;
+      }
+      #tools-panel .tools-grid button {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: pointer;
+      }
+      #tools-panel .tools-grid button:hover { background: rgba(0,0,0,0.08); }
+      /* Simple color buttons for Line/Area */
+      .tool-color-btn {
+        position: relative;
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 0px;
+        border: 2px solid #555;
+      }
+      .tool-color-btn .lbl {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font: 700 12px/1 Arial, sans-serif;
+        color: #fff;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+        pointer-events: none;
+      }
+      .tool-color-btn.area .lbl { content: 'A'; }
+      .tool-color-btn.line .lbl { content: 'L'; }
+      .tool-color-btn.selected { box-shadow: 0 0 0 2px #222 inset, 0 0 6px rgba(0,0,0,0.4); }
+    </style>
+    <div class="tools-grid">
+      <!-- Row 1: Line Red | Area Red -->
+      <button id="line-red-btn" class="tool-color-btn line" title="Line color: Red" style="background:#ff0000"><span class="lbl">L</span></button>
+      <button id="area-red-btn" class="tool-color-btn area" title="Area color: Red" style="background:#ff0000"><span class="lbl">A</span></button>
+      <!-- Row 2: Line Blue | Area Blue -->
+      <button id="line-blue-btn" class="tool-color-btn line" title="Line color: Blue" style="background:#0000ff"><span class="lbl">L</span></button>
+      <button id="area-blue-btn" class="tool-color-btn area" title="Area color: Blue" style="background:#0000ff"><span class="lbl">A</span></button>
+      <!-- Row 3: Line Yellow | Area Yellow -->
+      <button id="line-yellow-btn" class="tool-color-btn line" title="Line color: Yellow" style="background:#ffd000"><span class="lbl" style="color:#000; text-shadow: 0 1px 1px rgba(255,255,255,0.6);">L</span></button>
+      <button id="area-yellow-btn" class="tool-color-btn area" title="Area color: Yellow" style="background:#ffd000"><span class="lbl" style="color:#000; text-shadow: 0 1px 1px rgba(255,255,255,0.6);">A</span></button>
+      <!-- Row 4: Soldier Action | Soldier Standing -->
+      <button id="soldier-action-btn" title="Soldier Action"><img src="image/IconSoldierActionG.jpg" alt="Soldier Action" style="width:32px;height:32px;"></button>
+      <button id="soldier-standing-btn" title="Soldier Standing"><img src="image/IconSoldierStandingG.jpg" alt="Soldier Standing" style="width:32px;height:32px;"></button>
+      <!-- Row 5: Explosion | Flashpoint -->
+      <button id="explosion-btn" title="Explosion"><img src="image/IconExplosionG.jpg" alt="Explosion" style="width:32px;height:32px;"></button>
+      <button id="flashpoint-btn" title="Flashpoint"><img src="image/IconFlashpointG.jpg" alt="Flashpoint" style="width:32px;height:32px;"></button>
+      <!-- Row 6: Measure | UAV -->
+      <button id="measure-btn" title="Measure Distance"><img id="measure-btn-img" src="image/IconRulerG.jpg" alt="Measure Distance" style="width:32px;height:32px;"></button>
+      <button id="uav-btn" title="UAV"><img src="image/IconUAVG.jpg" alt="UAV Icon" style="width:32px;height:32px;"></button>
+      <!-- Row 7: Jetfighter | Helicopter -->
+      <button id="jetfighter-btn" title="Jetfighter"><img src="image/IconJetFighterG.jpg" alt="JetFighter Icon" style="width:32px;height:32px;"></button>
+      <button id="helicopter-btn" title="Helicopter"><img src="image/IconHelicopterG.jpg" alt="Helicopter Icon" style="width:32px;height:32px;"></button>
+      <!-- Row 8: Submarine | Select -->
+      <button id="submarine-btn" title="Submarine"><img src="image/IconSubmarineG.jpg" alt="Submarine Icon" style="width:32px;height:32px;"></button>
+      <button id="select-mode-btn" title="Select units"><img id="select-mode-btn-img" src="image/IconSelectRectangleG.jpg" alt="Select Units" style="width:32px;height:32px;"></button>
+      <!-- Row 9: Battleship | Tank -->
+      <button id="battleship-btn" title="Battleship"><img src="image/IconBattleshipG.jpg" alt="Battleship Icon" style="width:32px;height:32px;"></button>
+      <button id="tank-btn" title="Tank"><img src="image/IconTankG.jpg" alt="Tank Icon" style="width:32px;height:32px;"></button>
+      
     </div>
   </div>
   <div class="control-panel" id="map-panel">
@@ -572,8 +616,6 @@
           if (img) { img.src = 'image/IconDrawingL.jpg'; img.alt = 'Stop Drawing'; }
           const btn = document.getElementById('draw-btn');
           if (btn) btn.style.backgroundColor = '#e74c3c';
-          const palettePanel = document.getElementById('color-palette-panel');
-          if (palettePanel) palettePanel.style.display = 'block';
           break;
         }
         case 'move': {
@@ -881,13 +923,22 @@
         if (freehandTempLine) { try { tempDrawLayer.removeLayer(freehandTempLine); } catch(_) {} freehandTempLine = null; }
         // Add final polyline to drawn items
         var strokeCol = currentStrokeColor || penColor || '#ff0000';
-        var finalLine = L.polyline(currentPath, { color: strokeCol, weight: 3, opacity: 1 });
-        drawnItems.addLayer(finalLine);
-        lastDrawnPath = finalLine;
-        drawHistory.push(finalLine);
+        var finalLayer;
+        if (drawShapeMode === 'area') {
+          // Draw polygon with fill
+          finalLayer = L.polygon(currentPath, { color: strokeCol, weight: 2, opacity: 1, fillColor: strokeCol, fillOpacity: 0.2 });
+          drawnItems.addLayer(finalLayer);
+          drawHistory.push(finalLayer);
+          // Do not set lastDrawnPath for area shapes
+        } else {
+          finalLayer = L.polyline(currentPath, { color: strokeCol, weight: 3, opacity: 1 });
+          drawnItems.addLayer(finalLayer);
+          lastDrawnPath = finalLayer;
+          drawHistory.push(finalLayer);
+        }
         var undoImgPtr = document.getElementById('undo-btn-img');
         if (undoImgPtr) undoImgPtr.style.opacity = '1';
-        if (selectedUnits.length > 0) {
+        if (drawShapeMode !== 'area' && selectedUnits.length > 0) {
           const pathLatLngs = lastDrawnPath.getLatLngs();
           startPathMoveForMarkers(selectedUnits.slice(), pathLatLngs, 1500);
         }
@@ -915,12 +966,6 @@
         if (map.tap) map.tap.disable();
         // Prevent browser-native touch gestures while drawing
   if (map && map._container) { try { map._container.style.touchAction = 'none'; } catch(_){} }
-        // Show color palette when drawing starts
-        const palettePanelStart = document.getElementById('color-palette-panel');
-        if (palettePanelStart) {
-          palettePanelStart.style.display = 'block';
-          try { updatePaletteSelection(); } catch(_){}
-        }
         try { updateMapLockByTools(); } catch(_) {}
     }
     
@@ -936,7 +981,7 @@
       map.boxZoom.enable();
       map.keyboard.enable();
       if (map.tap) map.tap.enable();
-      // Hide color palette whenever drawing stops (icon turns G)
+      // Hide legacy palette (kept hidden)
       const palettePanelStop = document.getElementById('color-palette-panel');
       if (palettePanelStop) palettePanelStop.style.display = 'none';
   // Allow standard touch gestures again
@@ -1216,6 +1261,31 @@
       iconAnchor: [24, 24],
       popupAnchor: [0, -24]
     });
+    // Additional on-map icons (use *Map assets)
+    var soldierActionIcon = L.icon({
+      iconUrl: 'image/IconSoldierActionMap.gif',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -18]
+    });
+    var soldierStandingIcon = L.icon({
+      iconUrl: 'image/IconSoldierStandingMap.gif',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -18]
+    });
+    var explosionIcon = L.icon({
+      iconUrl: 'image/IconExplosionMap.gif',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+      popupAnchor: [0, -20]
+    });
+    var flashpointIcon = L.icon({
+      iconUrl: 'image/IconFlashpointMap.gif',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+      popupAnchor: [0, -20]
+    });
 
     // Place icon logic
     let placeMode = null;
@@ -1329,6 +1399,10 @@
         if (selectedBtn.id === 'helicopter-btn') selectedBtn.querySelector('img').src = 'image/IconHelicopterG.jpg';
         if (selectedBtn.id === 'submarine-btn') selectedBtn.querySelector('img').src = 'image/IconSubmarineG.jpg';
         if (selectedBtn.id === 'battleship-btn') selectedBtn.querySelector('img').src = 'image/IconBattleshipG.jpg';
+        if (selectedBtn.id === 'soldier-action-btn') selectedBtn.querySelector('img').src = 'image/IconSoldierActionG.jpg';
+        if (selectedBtn.id === 'soldier-standing-btn') selectedBtn.querySelector('img').src = 'image/IconSoldierStandingG.jpg';
+        if (selectedBtn.id === 'explosion-btn') selectedBtn.querySelector('img').src = 'image/IconExplosionG.jpg';
+        if (selectedBtn.id === 'flashpoint-btn') selectedBtn.querySelector('img').src = 'image/IconFlashpointG.jpg';
         selectedBtn.classList.remove('selected');
       }
       // Select new button
@@ -1348,6 +1422,20 @@
         if (mImg) mImg.src = 'image/IconRulerG.jpg';
         const mBtn = document.getElementById('measure-btn');
         if (mBtn) mBtn.style.backgroundColor = '#95a5a6';
+      }
+      // Exit animate-on-draw if active
+      if (typeof animDrawActive !== 'undefined' && animDrawActive) {
+        try { clearAnimDrawMode(); } catch(_){}
+      }
+      // Exit freehand drawing if active
+      if (typeof drawingMode !== 'undefined' && drawingMode) {
+        try { stopFreehandDraw(); } catch(_){}
+        const drawImg = document.getElementById('draw-btn-img');
+        if (drawImg) drawImg.src = 'image/IconDrawingG.jpg';
+        const drawBtn = document.getElementById('draw-btn');
+        if (drawBtn) drawBtn.style.backgroundColor = '#95a5a6';
+        const palettePanel = document.getElementById('color-palette-panel');
+        if (palettePanel) palettePanel.style.display = 'none';
       }
       try { updateMapLockByTools(); } catch(_) {}
     map.getContainer().style.cursor = 'crosshair';
@@ -1372,6 +1460,18 @@
       } else if (mode === 'battleship') {
         selectedBtn = document.getElementById('battleship-btn');
         selectedBtn.querySelector('img').src = 'image/IconBattleshipL.jpg';
+      } else if (mode === 'soldier-action') {
+        selectedBtn = document.getElementById('soldier-action-btn');
+        selectedBtn.querySelector('img').src = 'image/IconSoldierActionL.jpg';
+      } else if (mode === 'soldier-standing') {
+        selectedBtn = document.getElementById('soldier-standing-btn');
+        selectedBtn.querySelector('img').src = 'image/IconSoldierStandingL.jpg';
+      } else if (mode === 'explosion') {
+        selectedBtn = document.getElementById('explosion-btn');
+        selectedBtn.querySelector('img').src = 'image/IconExplosionL.jpg';
+      } else if (mode === 'flashpoint') {
+        selectedBtn = document.getElementById('flashpoint-btn');
+        selectedBtn.querySelector('img').src = 'image/IconFlashpointL.jpg';
       }
       selectedBtn.classList.add('selected');
     }
@@ -1384,6 +1484,10 @@
         if (selectedBtn.id === 'helicopter-btn') selectedBtn.querySelector('img').src = 'image/IconHelicopterG.jpg';
         if (selectedBtn.id === 'submarine-btn') selectedBtn.querySelector('img').src = 'image/IconSubmarineG.jpg';
         if (selectedBtn.id === 'battleship-btn') selectedBtn.querySelector('img').src = 'image/IconBattleshipG.jpg';
+        if (selectedBtn.id === 'soldier-action-btn') selectedBtn.querySelector('img').src = 'image/IconSoldierActionG.jpg';
+        if (selectedBtn.id === 'soldier-standing-btn') selectedBtn.querySelector('img').src = 'image/IconSoldierStandingG.jpg';
+        if (selectedBtn.id === 'explosion-btn') selectedBtn.querySelector('img').src = 'image/IconExplosionG.jpg';
+        if (selectedBtn.id === 'flashpoint-btn') selectedBtn.querySelector('img').src = 'image/IconFlashpointG.jpg';
         selectedBtn.classList.remove('selected');
         selectedBtn = null;
       }
@@ -1461,6 +1565,11 @@
     document.getElementById('helicopter-btn').onclick = function() { setRadioTool('anim:helicopter'); };
     document.getElementById('submarine-btn').onclick = function() { setRadioTool('anim:submarine'); };
     document.getElementById('battleship-btn').onclick = function() { setRadioTool('anim:battleship'); };
+  // Place-only tools
+  var saBtn = document.getElementById('soldier-action-btn'); if (saBtn) saBtn.onclick = function(){ setPlaceMode('soldier-action'); };
+  var ssBtn = document.getElementById('soldier-standing-btn'); if (ssBtn) ssBtn.onclick = function(){ setPlaceMode('soldier-standing'); };
+  var exBtn = document.getElementById('explosion-btn'); if (exBtn) exBtn.onclick = function(){ setPlaceMode('explosion'); };
+  var fpBtn = document.getElementById('flashpoint-btn'); if (fpBtn) fpBtn.onclick = function(){ setPlaceMode('flashpoint'); };
 
     // Lock toggle button logic
     const lockBtn = document.getElementById('lock-map-btn');
@@ -1473,41 +1582,66 @@
       });
     }
 
-    map.on('click', function(e) {
-      if (animDrawActive) return; // block placement while anim-draw mode is active
+    // Placement utility with de-duplication across touch/click
+    var __lastPlaceTs = 0;
+    function placeAt(latlng) {
+      if (animDrawActive) return; // block while anim-draw is active
       if (!placeMode) return;
+      const now = Date.now();
+      if (now - __lastPlaceTs < 200) return; // prevent double-fire (touch + click)
+      __lastPlaceTs = now;
       let icon;
       if (placeMode === 'tank') icon = tankIcon;
       if (placeMode === 'uav') icon = uavIcon;
       if (placeMode === 'jetfighter') icon = jetfighterIcon;
       if (placeMode === 'helicopter') icon = helicopterIcon;
       if (placeMode === 'submarine') icon = submarineIcon;
-  if (placeMode === 'battleship') icon = battleshipIcon;
-      if (icon) {
-  const m = L.marker(e.latlng, {icon: icon, draggable: true}).addTo(map);
-        m.unitType = placeMode;
-        m.isSelected = false;
-  m._headingDeg = 0;
-  m.bindTooltip('<span class="heading-tip">0°</span>', {permanent: false, direction: 'top', sticky: true, opacity: 0.9, offset: [0, -12], className: 'heading-tooltip'});
-  allMarkers.push(m);
-  // Add unit placement to undo history
-  drawHistory.push(m);
-  const undoImgP = document.getElementById('undo-btn-img');
-  if (undoImgP) undoImgP.style.opacity = '1';
-        // Click to toggle selection when in select mode
-        m.on('click', function(ev) {
-          if (!isSelectMode) return;
-          if (ev && ev.originalEvent && L && L.DomEvent) { try { L.DomEvent.stopPropagation(ev); } catch(_){} }
-          toggleUnitSelection(m);
-          // Do not suppress; next explicit map click becomes the destination
-          suppressNextMapClick = false;
-        });
-        // Directional drag for applicable unit types
-        if (m.unitType === 'jetfighter' || m.unitType === 'tank' || m.unitType === 'uav' || m.unitType === 'submarine' || m.unitType === 'battleship' || m.unitType === 'helicopter') {
-          attachDirectionalDrag(m);
-        }
-        // Do NOT clear placeMode here, so user can keep spawning icons
+      if (placeMode === 'battleship') icon = battleshipIcon;
+      if (placeMode === 'soldier-action') icon = soldierActionIcon;
+      if (placeMode === 'soldier-standing') icon = soldierStandingIcon;
+      if (placeMode === 'explosion') icon = explosionIcon;
+      if (placeMode === 'flashpoint') icon = flashpointIcon;
+      if (!icon) return;
+      const m = L.marker(latlng, {icon: icon, draggable: true}).addTo(map);
+      m.unitType = placeMode;
+      m.isSelected = false;
+      if (['jetfighter','tank','uav','submarine','battleship','helicopter'].includes(m.unitType)) {
+        m._headingDeg = 0;
+        m.bindTooltip('<span class="heading-tip">0°</span>', {permanent: false, direction: 'top', sticky: true, opacity: 0.9, offset: [0, -12], className: 'heading-tooltip'});
       }
+      allMarkers.push(m);
+      drawHistory.push(m);
+      const undoImgP = document.getElementById('undo-btn-img');
+      if (undoImgP) undoImgP.style.opacity = '1';
+      m.on('click', function(ev) {
+        if (!isSelectMode) return;
+        if (ev && ev.originalEvent && L && L.DomEvent) { try { L.DomEvent.stopPropagation(ev); } catch(_){} }
+        toggleUnitSelection(m);
+        suppressNextMapClick = false;
+      });
+      if (m.unitType === 'jetfighter' || m.unitType === 'tank' || m.unitType === 'uav' || m.unitType === 'submarine' || m.unitType === 'battleship' || m.unitType === 'helicopter') {
+        attachDirectionalDrag(m);
+      }
+    }
+
+    // Click placement (fallback)
+    map.on('click', function(e) { placeAt(e.latlng); });
+    // Mouse down placement (more immediate)
+    map.on('mousedown', function(e) {
+      // ignore if non-left button
+      if (e.originalEvent && e.originalEvent.button != null && e.originalEvent.button !== 0) return;
+      placeAt(e.latlng);
+    });
+    // Touch placement
+    map.on('touchstart', function(e) {
+      try { if (e.originalEvent) e.originalEvent.preventDefault(); } catch(_){}
+      if (!e.originalEvent) return;
+      const touch = e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : (e.originalEvent.changedTouches ? e.originalEvent.changedTouches[0] : null);
+      if (!touch) return;
+      const rect = map.getContainer().getBoundingClientRect();
+      const latlng = map.containerPointToLatLng([touch.clientX - rect.left, touch.clientY - rect.top]);
+      if (!latlng) return;
+      placeAt(latlng);
     });
 
     // Keep icon heading consistent across pan/zoom
@@ -1762,8 +1896,18 @@
         if (marqueePtrId == null || ev.pointerId !== marqueePtrId) return;
         try { ev.preventDefault(); } catch(_){}
         try { ev.stopPropagation(); } catch(_){}
-        // If we never started marquee, treat it like a tap (let map click handler run)
+        const wasActive = marqueeActive;
+        // Finish any marquee gesture first
         endPtrGesture();
+        // If no marquee was active, consider this a tap; issue move for selected units
+        if (!wasActive) {
+          if (!suppressNextMapClick && isSelectMode && selectedUnits && selectedUnits.length > 0) {
+            try {
+              const ll = ptrToLatLng(ev);
+              if (ll) moveSelectedUnitsTo(ll);
+            } catch(_){}
+          }
+        }
       }
       function onPtrCancel(ev){
         if (!marqueePointerEnabled) return;
@@ -1778,6 +1922,25 @@
       try { c.addEventListener('pointerup', onPtrUp, { passive: false }); } catch(_){}
       try { c.addEventListener('pointercancel', onPtrCancel, { passive: false }); } catch(_){}
     })();
+
+    // Touch fallback for tap-to-move when pointer marquee is enabled
+    map.on('touchend', function(e){
+      if (!isSelectMode) return;
+      if (typeof marqueePointerEnabled === 'boolean' && !marqueePointerEnabled) return; // legacy path handles separately
+      if (suppressNextMapClick) { suppressNextMapClick = false; return; }
+      if (!selectedUnits || selectedUnits.length === 0) return;
+      if (!e || !e.originalEvent) return;
+      try { e.originalEvent.preventDefault(); } catch(_){}
+      const t = e.originalEvent.changedTouches && e.originalEvent.changedTouches[0]
+        ? e.originalEvent.changedTouches[0]
+        : (e.originalEvent.touches && e.originalEvent.touches[0] ? e.originalEvent.touches[0] : null);
+      if (!t) return;
+      try {
+        const rect = map.getContainer().getBoundingClientRect();
+        const ll = map.containerPointToLatLng([t.clientX - rect.left, t.clientY - rect.top]);
+        if (ll) moveSelectedUnitsTo(ll);
+      } catch(_){}
+    });
 
     // Geodesic destination from center by distance (m) and bearing (deg)
     function destinationPoint(center, distance, bearingDeg) {
@@ -2551,6 +2714,78 @@
       }
     });
 
+    // Touch/pointer support for Measure tool
+    // - Single tap adds a point
+    // - Double-tap (within 350ms and ~30px) ends measuring (mirrors dblclick)
+    (function(){
+      var lastMeasureInputTime = 0;
+      var lastMeasureTapLatLng = null;
+      function eventToLatLng(ev){
+        try {
+          if (ev && ev.latlng) return ev.latlng;
+          var c = map.getContainer(); if (!c) return null;
+          var rect = c.getBoundingClientRect();
+          var oe = ev && (ev.originalEvent || ev);
+          var cx, cy;
+          if (oe && oe.touches && oe.touches[0]) { cx = oe.touches[0].clientX; cy = oe.touches[0].clientY; }
+          else if (oe && oe.changedTouches && oe.changedTouches[0]) { cx = oe.changedTouches[0].clientX; cy = oe.changedTouches[0].clientY; }
+          else if (oe && typeof oe.clientX === 'number') { cx = oe.clientX; cy = oe.clientY; }
+          else { return null; }
+          var x = cx - rect.left, y = cy - rect.top;
+          return map.containerPointToLatLng([x, y]);
+        } catch(_) { return null; }
+      }
+      function addMeasurePoint(ev){
+        if (!measuring) return;
+        var now = Date.now();
+        // De-dupe against subsequent synthetic click
+        if (now - lastMeasureInputTime < 200) return;
+        var ll = eventToLatLng(ev); if (!ll) return;
+        try { if (ev && ev.originalEvent && typeof ev.originalEvent.preventDefault === 'function') ev.originalEvent.preventDefault(); } catch(_){ }
+        measurePoints.push(ll);
+        updateMeasure();
+        lastMeasureInputTime = now;
+        lastMeasureTapLatLng = ll;
+      }
+      function maybeFinishOnDoubleTap(ev){
+        if (!measuring) return;
+        var now = Date.now();
+        if (now - lastMeasureInputTime > 350) return; // too slow to be a double-tap
+        var ll = eventToLatLng(ev); if (!ll || !lastMeasureTapLatLng) return;
+        // Compare pixel distance to keep it a double-tap, not two far taps
+        try {
+          var p1 = map.latLngToContainerPoint(lastMeasureTapLatLng);
+          var p2 = map.latLngToContainerPoint(ll);
+          var dx = p1.x - p2.x, dy = p1.y - p2.y;
+          if ((dx*dx + dy*dy) <= (30*30)) {
+            stopMeasuring();
+            var btn = document.getElementById('measure-btn');
+            if (btn) btn.style.backgroundColor = '#95a5a6';
+            var img = document.getElementById('measure-btn-img');
+            if (img) img.src = 'image/IconRulerG.jpg';
+          }
+        } catch(_){}
+      }
+      // Touch path
+      map.on('touchstart', function(e){ try { addMeasurePoint(e); } catch(_){ } });
+      map.on('touchend', function(e){ try { maybeFinishOnDoubleTap(e); } catch(_){ } });
+      // Pointer path (covers Windows pen/touch)
+      map.on('pointerdown', function(e){
+        try {
+          var oe = e && e.originalEvent;
+          var pt = oe && oe.pointerType;
+          if (pt && pt !== 'mouse') addMeasurePoint(e);
+        } catch(_){ }
+      });
+      map.on('pointerup', function(e){
+        try {
+          var oe = e && e.originalEvent;
+          var pt = oe && oe.pointerType;
+          if (pt && pt !== 'mouse') maybeFinishOnDoubleTap(e);
+        } catch(_){ }
+      });
+    })();
+
     // Initialize button appearance
     updateLocationButtons();
 
@@ -2558,6 +2793,8 @@
 
     // Pen color selection logic (persisted)
     var penColor = (function(){ try { return localStorage.getItem('penColor') || '#ff0000'; } catch(_){ return '#ff0000'; } })();
+    // Shape mode for drawing: 'line' or 'area'
+    var drawShapeMode = (function(){ try { return localStorage.getItem('drawShapeMode') || 'line'; } catch(_){ return 'line'; } })();
     function updatePaletteSelection(){
       try {
         var buttons = document.querySelectorAll('.palette-color-btn');
@@ -2574,6 +2811,63 @@
     });
     // Initialize palette selection on load
     try { updatePaletteSelection(); } catch(_){}
+
+    // Wire line/area buttons
+    function selectToolColorBtn(el){
+      try {
+        document.querySelectorAll('#tools-panel .tool-color-btn').forEach(function(b){ b.classList.remove('selected'); });
+        if (el) el.classList.add('selected');
+      } catch(_){ }
+    }
+    function setLineColor(color, btnEl){
+      penColor = color; try { localStorage.setItem('penColor', penColor); } catch(_){ }
+      drawShapeMode = 'line'; try { localStorage.setItem('drawShapeMode', drawShapeMode); } catch(_){ }
+      selectToolColorBtn(btnEl);
+      // Auto-enable Draw tool for convenience
+      try {
+        // Only enable if not already drawing to avoid toggling it off
+        if (typeof getActiveRadioTool === 'function') {
+          if (getActiveRadioTool() !== 'draw') setRadioTool('draw');
+        } else {
+          setRadioTool('draw');
+        }
+      } catch(_){ }
+    }
+    function setAreaColor(color, btnEl){
+      penColor = color; try { localStorage.setItem('penColor', penColor); } catch(_){ }
+      drawShapeMode = 'area'; try { localStorage.setItem('drawShapeMode', drawShapeMode); } catch(_){ }
+      selectToolColorBtn(btnEl);
+      // Auto-enable Draw tool for convenience
+      try {
+        // Only enable if not already drawing to avoid toggling it off
+        if (typeof getActiveRadioTool === 'function') {
+          if (getActiveRadioTool() !== 'draw') setRadioTool('draw');
+        } else {
+          setRadioTool('draw');
+        }
+      } catch(_){ }
+    }
+    // Hook color buttons if present
+    var LRED = document.getElementById('line-red-btn'); if (LRED) LRED.onclick = function(){ setLineColor('#ff0000', LRED); };
+    var ARED = document.getElementById('area-red-btn'); if (ARED) ARED.onclick = function(){ setAreaColor('#ff0000', ARED); };
+    var LBLU = document.getElementById('line-blue-btn'); if (LBLU) LBLU.onclick = function(){ setLineColor('#0000ff', LBLU); };
+    var ABLU = document.getElementById('area-blue-btn'); if (ABLU) ABLU.onclick = function(){ setAreaColor('#0000ff', ABLU); };
+    var LYEL = document.getElementById('line-yellow-btn'); if (LYEL) LYEL.onclick = function(){ setLineColor('#ffd000', LYEL); };
+    var AYEL = document.getElementById('area-yellow-btn'); if (AYEL) AYEL.onclick = function(){ setAreaColor('#ffd000', AYEL); };
+    // Restore selection highlight based on current state
+    (function(){
+      var id = null;
+      if (drawShapeMode === 'area') {
+        if (penColor === '#ff0000') id = 'area-red-btn';
+        else if (penColor === '#0000ff') id = 'area-blue-btn';
+        else if (penColor === '#ffd000') id = 'area-yellow-btn';
+      } else {
+        if (penColor === '#ff0000') id = 'line-red-btn';
+        else if (penColor === '#0000ff') id = 'line-blue-btn';
+        else if (penColor === '#ffd000') id = 'line-yellow-btn';
+      }
+      var el = id ? document.getElementById(id) : null; if (el) selectToolColorBtn(el);
+    })();
 
     // penColor is applied in mouse/touch drawing handlers above
 
