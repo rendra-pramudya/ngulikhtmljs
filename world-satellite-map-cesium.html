@@ -13,73 +13,554 @@
             padding: 0;
             overflow: hidden;
         }
-        #toolbar {
+        /* Right-side control panels (ported from Leaflet page) */
+        .control-panel {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 10;
-            background: rgba(255,255,255,0.8);
-            padding: 8px;
-            border-radius: 4px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(4px);
+            padding: 6px;
+            border-radius: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            user-select: none;
         }
-    </style>
+        .location-buttons,
+        .other-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .map-btn {
+            appearance: none;
+            border: 0;
+            background: transparent;
+            padding: 4px;
+            border-radius: 0;
+            cursor: pointer;
+        }
+        .map-btn:hover { background: rgba(0,0,0,0.06); }
+        .map-btn.selected { outline: 2px solid #3498db; background: rgba(52,152,219,0.12); }
+        .map-btn-img { width: 40px; height: 40px; display: grid; place-items: center; }
+        .map-btn-img img { width: 32px; height: 32px; display: block; }
+
+        /* Location number buttons and vertical stack */
+        .map-btn-num {
+            width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+            font-family: Arial, sans-serif; font-weight: 700; font-size: 14px; color: #fff;
+            background: transparent; pointer-events: none;
+        }
+        #loc-panel { position: absolute; right: 10px; top: 70px; z-index: 1001; background: transparent; padding: 0; box-shadow: none; }
+        #loc-panel .location-stack { display: flex; flex-direction: column; gap: 8px; }
+        .location-btn { width: 40px; height: 40px; border-radius: 50%; background: #e67e22; border: 2px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.25); }
+        .location-btn:hover { filter: brightness(1.05); }
+        .location-btn.saved { background: #d35400; }
+
+        /* Tools grid becomes a single column */
+        .tools-grid { display: grid; grid-template-columns: 40px; gap: 6px; justify-content: center; }
+
+        /* Color palette: three color rows with L/A */
+        #color-palette-panel { width: 96px; display: block; }
+        .color-palette-buttons { display: grid; grid-template-columns: repeat(2, 40px); gap: 6px; padding: 4px; background: #ffffff; }
+        .palette-color-btn { width: 40px; height: 40px; border-radius: 0; border: 2px solid #ffffff; cursor: pointer; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-family: Arial, sans-serif; }
+        .palette-color-btn.selected { outline: 2px solid #333; }
+
+        /* Drawing panel vertical style */
+        #drawing-panel { width: 48px; }
+        #drawing-panel .location-buttons { flex-direction: column; gap: 8px; }
+        #drawing-panel .map-btn:hover { background: rgba(255,255,255,0.12); }
+
+        /* Debug overlay */
+        #debug-overlay { position: absolute; left: 10px; bottom: 10px; width: 320px; max-height: 30vh; background: rgba(0,0,0,0.8); color: #fff; padding: 8px; border-radius: 0; font: 12px/1.4 monospace; z-index: 1200; display: none; }
+        #debug-overlay .dbg-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 4px; }
+        #debug-overlay .dbg-title { font-weight:600; }
+        #debug-lines { overflow:auto; white-space: pre-wrap; word-break: break-word; max-height: 22vh; }
+
+        /* Toasts */
+        #toast-container { position:fixed; left:10px; bottom:10px; z-index:1200; display:flex; flex-direction:column; gap:6px; }
+        .toast { background: rgba(0,0,0,0.85); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 12px; }
+
+        /* Top toolbar */
+        #toolbar { position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(255,255,255,0.8); padding: 8px; border-radius: 0; }
+   
+    #map {
+      height: 100vh;
+      width: 100vw;
+      margin: 0;
+      padding: 0;
+      /* Darken map background to avoid bright flashes under tiles */
+      background: #0b0b0b;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    .control-panel {
+      position: absolute;
+      z-index: 1000;
+      right: 400px;
+      top: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      
+      margin: 0;
+    }
+    .map-btn-img {
+      position: relative;
+      display: inline-block;
+      width: 32px;
+      height: 32px;
+    }
+    .map-btn-img img {
+      width: 32px;
+      height: 32px;
+      display: block;
+    }
+    .map-btn-num {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.3em;
+      font-weight: bold;
+      color: white;
+      text-shadow: 0 0 4px #000, 0 0 2px #333;
+      pointer-events: none;
+    }
+    .location-btn.memorize-mode {
+      background-color: #e74c3c;
+      color: white;
+    }
+    .location-btn.memorize-mode:hover {
+      background-color: #c0392b;
+    }
+    .location-btn.go-mode {
+      background-color: #3498db;
+      color: white;
+    }
+    .location-btn.go-mode:hover {
+      background-color: #2980b9;
+    }
+    .other-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0px;
+      align-items: flex-start;
+      margin-top: 10px;
+    }
+    .other-buttons button {
+      display: flex;
+      align-items: center;
+      width: 48px;
+      height: 48px;
+      padding: 0;
+      border: none;
+      border-radius: 0px;
+      background: none;
+      cursor: pointer;
+    }
+    .other-buttons button:hover {
+      background-color: #7f8c8d;
+    }
+    #drawing-panel {
+      top: 80px;
+      right: 70px;
+      width: 32px;
+    }
+    #mode-panel {
+      top: 10px;
+      right: 10px;
+      width: 92px;
+    }
+      #map-panel {
+        top: 80px;
+        right: 10px;
+        width: 50px; /* widened panel to fit wider buttons */
+        padding: 0; /* ensure content fits exact width */
+      }
+      /* Make sure location buttons fit exactly inside the 32px panel */
+      #map-panel .location-buttons {
+        display: block;
+        flex-direction: column;
+        align-items: center;
+        gap: 40px;
+        margin: 0;
+        padding: 0;
+        align-items: center;
+        justify-content: center;
+        
+      }
+      #map-panel .location-btn {
+        width: 50px;  /* wider click target */
+        height: 50px; /* slightly taller for symmetry */
+        padding: 0;
+        border: none;
+        background: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #map-panel .map-btn-img,
+      #map-panel .map-btn-img img {
+        width: 32px;  /* keep the icon at 32px */
+        height: 32px;
+        display: block;
+      }
+    #action-mode-panel {
+      position: absolute;
+      z-index: 1000;
+      right: 200px;
+      top: 10px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      font-family: Arial, sans-serif;
+    }
+    .action-mode-switch {
+      display: flex;
+      flex-direction: column;
+      gap: 0px;
+      align-items: flex-start;
+    }
+    .action-mode-switch button {
+      width: 90px;
+      height: 32px;
+      font-size: 1em;
+      cursor: pointer;
+      border: none;
+      background: #eee;
+      margin-bottom: 4px;
+    }
+    .action-mode-switch button.selected {
+      background: #3498db;
+      color: white;
+    }
+    .color-palette-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: center;
+    }
+    .palette-color-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      cursor: pointer;
+      position: relative;
+    }
+    .palette-color-btn:hover {
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    }
+    .palette-color-btn.selected {
+      border: 2px solid #333;
+    }
+    /* Tint Go-mode icon red when active */
+    #mode-go-img.go-active-red {
+      /* strong red tint */
+      filter: invert(16%) sepia(88%) saturate(5200%) hue-rotate(1deg) brightness(95%) contrast(115%);
+    }
+    /* Selection highlight for units */
+    .leaflet-marker-icon.unit-selected {
+      filter: drop-shadow(0 0 6px yellow) brightness(1.15);
+    }
+    /* Heading tooltip styling */
+    .heading-tooltip .leaflet-tooltip-content { padding: 2px 4px; }
+  .heading-tip { display: inline-flex; align-items: center; gap: 0; font-family: Arial, sans-serif; font-size: 11px; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,0.6); }
+    .leaflet-tooltip.heading-tooltip { background: rgba(0,0,0,0.65); border: 0; border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+  .leaflet-tooltip.heading-tooltip.leaflet-tooltip-top:before,
+  .leaflet-tooltip.heading-tooltip.leaflet-tooltip-bottom:before,
+  .leaflet-tooltip.heading-tooltip.leaflet-tooltip-left:before,
+  .leaflet-tooltip.heading-tooltip.leaflet-tooltip-right:before { display: none; }
+  /* Measure popup styling: no pointer tip and no rounded corners */
+  .leaflet-popup.measure-popup .leaflet-popup-tip-container { display: none; }
+  .leaflet-popup.measure-popup .leaflet-popup-content-wrapper { border-radius: 0; background: rgba(0,0,0,0.9); color: #fff; }
+  .leaflet-popup.measure-popup .leaflet-popup-content { color: #fff; margin: 6px 8px; }
+  .leaflet-popup.measure-popup { border-radius: 0; }
+    /* Debug overlay */
+    #debug-overlay {
+      position: fixed;
+      left: 10px;
+      bottom: 70px; /* keep a bit above toasts */
+      width: 480px;
+      max-height: 40vh;
+      background: rgba(0,0,0,0.85);
+      color: #e6e6e6;
+      font: 11px/1.3 Consolas, Menlo, Monaco, monospace;
+      padding: 6px 6px 4px 6px;
+      z-index: 10000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      border-radius: 3px;
+      display: none; /* hidden by default */
+      flex-direction: column;
+      gap: 4px;
+    }
+    #debug-overlay .dbg-head { display:flex; align-items:center; justify-content:space-between; }
+    #debug-overlay .dbg-title { font-weight:600; color:#fff; }
+    #debug-overlay .dbg-controls button, #debug-overlay .dbg-controls label { font-size: 11px; }
+    #debug-lines { overflow:auto; white-space: pre-wrap; word-break: break-word; max-height: 30vh; }
+
+    /* Saved slot visual indicators */
+    #map-panel .location-btn .saved-dot {
+      position: absolute;
+      right: -2px;
+      bottom: -2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #e74c3c; /* red */
+      border: 2px solid #ffffff;
+      display: none;
+    }
+    #map-panel .location-btn.saved .saved-dot { display: block; }
+    @keyframes slotSavedPulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+    #map-panel .location-btn.pulse .map-btn-img { animation: slotSavedPulse 600ms ease; }
+  </style>
 </head>
 <body>
         <div id="cesiumContainer"></div>
+        <!-- Simple toolbar for search and 3D objects -->
         <div id="toolbar">
-            <form onsubmit="return false;" style="display: flex; flex-direction: column; gap: 10px; min-width: 260px;">
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <button type="button" onclick="viewer.camera.flyHome(0)">Home</button>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <label for="objectType" style="min-width: 90px;">3D Object:</label>
-                    <select id="objectType" style="flex: 1;">
-                        <option value="tank">Tank</option>
-                        <option value="airplane">Airplane</option>
-                        <option value="custom">Custom URL</option>
-                    </select>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <label for="modelUrl" style="min-width: 90px;">Model URL:</label>
-                    <input type="text" id="modelUrl" placeholder="https://... .glb or .gltf" style="width:160px;">
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <label for="longitude" style="min-width: 90px;">Longitude:</label>
-                    <input type="number" id="longitude" placeholder="Longitude" step="0.0001" style="width:100px;">
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <label for="latitude" style="min-width: 90px;">Latitude:</label>
-                    <input type="number" id="latitude" placeholder="Latitude" step="0.0001" style="width:100px;">
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <label for="altitude" style="min-width: 90px;">Altitude (m):</label>
-                    <input type="number" id="altitude" placeholder="0 (ground)" step="1" style="width:100px;">
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <button type="button" onclick="add3DObject()">Add 3D Object</button>
-                    <button type="button" onclick="goToLatLon()">Go To Location</button>
-                </div>
-                <hr style="border: none; border-top: 1px solid #ccc; margin: 4px 0;" />
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <label for="searchText" style="min-width: 90px;">Search:</label>
-                    <input type="text" id="searchText" placeholder="Place or address" style="width:160px;">
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <button type="button" onclick="searchAndGo()">Search & Go</button>
-                </div>
-            </form>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <label>Lon <input id="longitude" type="number" step="0.000001" style="width:110px"></label>
+            <label>Lat <input id="latitude" type="number" step="0.000001" style="width:110px"></label>
+            <label>Alt (m) <input id="altitude" type="number" step="1" style="width:90px" value="10000"></label>
+            <button onclick="goToLatLon()">Go</button>
+            <button id="btnGeolocate">My Location</button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+            <label>Object
+              <select id="objectType">
+                <option value="tank">Tank</option>
+                <option value="airplane">Airplane</option>
+                <option value="custom">Custom URL</option>
+              </select>
+            </label>
+            <input id="modelUrl" type="url" placeholder="https://example.com/model.glb" style="width:300px">
+            <button onclick="add3DObject()">Add 3D</button>
+            <button id="btnClearEntities" title="Remove user-added 3D entities">Clear Entities</button>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+            <input id="searchText" type="text" placeholder="Search place (Nominatim)" style="width:340px">
+            <button onclick="searchAndGo()">Search</button>
+            <span style="margin-left:12px; opacity:0.8">Ion token: <code>localStorage['CESIUM_ION_TOKEN']</code> or <code>?ionToken=...</code></span>
+          </div>
+          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+            <label>Base Layer
+              <select id="baseLayerSelect">
+                <option value="arcgis" selected>ArcGIS Imagery</option>
+                <option value="osm">OSM Standard</option>
+              </select>
+            </label>
+            <label><input type="checkbox" id="terrainToggle"> Terrain</label>
+            <button id="btnFreehand">Freehand Draw</button>
+            <button id="btnClearDrawings">Clear Drawings</button>
+          </div>
+        </div>
+        <div class="control-panel" id="drawing-panel">
+    <div class="location-buttons">
+      <button id="draw-btn" style="padding:0;border:none;background:none;">
+        <img id="draw-btn-img" src="image/IconDrawingG.jpg" alt="Freehand Draw" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="clear-btn" style="padding:0;border:none;background:none;">
+        <img src="image/IconClearG.jpg" alt="Clear Drawings" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+      <button id="undo-btn" style="padding:0;border:none;background:none;">
+        <img id="undo-btn-img" src="image/IconUndoG.jpg" alt="Undo" style="width:32px;height:32px;vertical-align:middle;opacity:0.5;">
+      </button>
+      <button id="move-btn" style="padding:0;border:none;background:none;">
+        <img id="move-btn-img" src="image/IconMoveG.jpg" alt="Move" style="width:32px;height:32px;vertical-align:middle;">
+      </button>
+    </div>
+  </div>
+
+  <div class="control-panel" id="tools-panel" style="top: 255px; right: 70px; width: 90px; display: none;">
+    <style>
+      /* Tools grid layout: 2 columns x up to 10 rows */
+      #tools-panel .tools-grid {
+        display: grid;
+        grid-template-columns: 45px 45px;
+        grid-auto-rows: 48px;
+        gap: 2px 2px;
+        align-items: center;
+        justify-items: center;
+      }
+      #tools-panel .tools-grid button {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: pointer;
+      }
+      #tools-panel .tools-grid button:hover { background: rgba(0,0,0,0.08); }
+      /* Simple color buttons for Line/Area */
+      .tool-color-btn {
+        position: relative;
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 0px;
+        border: 2px solid #555;
+      }
+      .tool-color-btn .lbl {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font: 700 12px/1 Arial, sans-serif;
+        color: #fff;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+        pointer-events: none;
+      }
+      .tool-color-btn.area .lbl { content: 'A'; }
+      .tool-color-btn.line .lbl { content: 'L'; }
+      .tool-color-btn.selected { box-shadow: 0 0 0 2px #222 inset, 0 0 6px rgba(0,0,0,0.4); }
+    </style>
+    <div class="tools-grid">
+      <!-- Row 1: Line Red | Area Red -->
+      <button id="line-red-btn" class="tool-color-btn line" title="Line color: Red" style="background:#ff0000"><span class="lbl">L</span></button>
+      <button id="area-red-btn" class="tool-color-btn area" title="Area color: Red" style="background:#ff0000"><span class="lbl">A</span></button>
+      <!-- Row 2: Line Blue | Area Blue -->
+      <button id="line-blue-btn" class="tool-color-btn line" title="Line color: Blue" style="background:#0000ff"><span class="lbl">L</span></button>
+      <button id="area-blue-btn" class="tool-color-btn area" title="Area color: Blue" style="background:#0000ff"><span class="lbl">A</span></button>
+      <!-- Row 3: Line Yellow | Area Yellow -->
+      <button id="line-yellow-btn" class="tool-color-btn line" title="Line color: Yellow" style="background:#ffd000"><span class="lbl" style="color:#000; text-shadow: 0 1px 1px rgba(255,255,255,0.6);">L</span></button>
+      <button id="area-yellow-btn" class="tool-color-btn area" title="Area color: Yellow" style="background:#ffd000"><span class="lbl" style="color:#000; text-shadow: 0 1px 1px rgba(255,255,255,0.6);">A</span></button>
+      <!-- Row 4: Soldier Action | Soldier Standing -->
+      <button id="soldier-action-btn" title="Soldier Action"><img src="image/IconSoldierActionG.jpg" alt="Soldier Action" style="width:32px;height:32px;"></button>
+      <button id="soldier-standing-btn" title="Soldier Standing"><img src="image/IconSoldierStandingG.jpg" alt="Soldier Standing" style="width:32px;height:32px;"></button>
+      <!-- Row 5: Explosion | Flashpoint -->
+      <button id="explosion-btn" title="Explosion"><img src="image/IconExplosionG.jpg" alt="Explosion" style="width:32px;height:32px;"></button>
+      <button id="flashpoint-btn" title="Flashpoint"><img src="image/IconFlashpointG.jpg" alt="Flashpoint" style="width:32px;height:32px;"></button>
+      <!-- Row 6: Measure | UAV -->
+      <button id="measure-btn" title="Measure Distance"><img id="measure-btn-img" src="image/IconRulerG.jpg" alt="Measure Distance" style="width:32px;height:32px;"></button>
+      <button id="uav-btn" title="UAV"><img src="image/IconUAVG.jpg" alt="UAV Icon" style="width:32px;height:32px;"></button>
+      <!-- Row 7: Jetfighter | Helicopter -->
+      <button id="jetfighter-btn" title="Jetfighter"><img src="image/IconJetFighterG.jpg" alt="JetFighter Icon" style="width:32px;height:32px;"></button>
+      <button id="helicopter-btn" title="Helicopter"><img src="image/IconHelicopterG.jpg" alt="Helicopter Icon" style="width:32px;height:32px;"></button>
+      <!-- Row 8: Submarine | Select -->
+      <button id="submarine-btn" title="Submarine"><img src="image/IconSubmarineG.jpg" alt="Submarine Icon" style="width:32px;height:32px;"></button>
+      <button id="select-mode-btn" title="Select units"><img id="select-mode-btn-img" src="image/IconSelectRectangleG.jpg" alt="Select Units" style="width:32px;height:32px;"></button>
+      <!-- Row 9: Battleship | Tank -->
+      <button id="battleship-btn" title="Battleship"><img src="image/IconBattleshipG.jpg" alt="Battleship Icon" style="width:32px;height:32px;"></button>
+      <button id="tank-btn" title="Tank"><img src="image/IconTankG.jpg" alt="Tank Icon" style="width:32px;height:32px;"></button>
+      
+    </div>
+  </div>
+  <div class="control-panel" id="map-panel">
+    <div class="location-buttons" >
+      <button class="location-btn" id="location-1"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-1" style="padding:0;border:none;width:32px;height:32px;"><span class="map-btn-num" id="location-num-1">1</span></span></button>
+      <button class="location-btn" id="location-2"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-2" style="padding:0;width:32px;height:32px;"><span class="map-btn-num" id="location-num-2">2</span></span></button>
+      <button class="location-btn" id="location-3"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-3" style="padding:0;width:32px;height:32px;"><span class="map-btn-num" id="location-num-3">3</span></span></button>
+      <button class="location-btn" id="location-4"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-4" style="padding:0;width:32px;height:32px;"><span class="map-btn-num" id="location-num-4">4</span></span></button>
+      <button class="location-btn" id="location-5"><span class="map-btn-img"><img src="image/IconMapG.jpg" id="location-img-5" style="padding:0;width:32px;height:32px;"><span class="map-btn-num" id="location-num-5">5</span></span></button>
+    </div>
+  </div>  
+  <div class="control-panel" id="mode-panel">
+    <div class="mode-switch">
+      <button id="mode-memorize" style="padding:0;border:none;background:none;outline:none;">
+        <img id="mode-memorize-img" src="image/IconSaveL.jpg" alt="Memorize Mode" style="width:40px;height:40px;vertical-align:middle;">
+      </button>
+      <button id="mode-go" style="padding:0;border:none;background:none;outline:none;">
+        <img id="mode-go-img" src="image/IconGotoMapG.jpg" alt="Go Mode" style="width:40px;height:40px;vertical-align:middle;">
+      </button>
+    </div>
+  </div>
+  <div class="control-panel" id="color-palette-panel" style="top: 90px; right: 130px; width: 40px; display: none;">
+    <div class="color-palette-buttons">
+      <button class="palette-color-btn" data-color="#ff0000" title="Red" style="background:#ff0000;width:32px;height:32px;border:none;margin-bottom:4px;"></button>
+      <button class="palette-color-btn" data-color="#00ff00" title="Green" style="background:#00ff00;width:32px;height:32px;border:none;margin-bottom:4px;"></button>
+      <button class="palette-color-btn" data-color="#0000ff" title="Blue" style="background:#0000ff;width:32px;height:32px;border:none;margin-bottom:4px;"></button>
+      <button class="palette-color-btn" data-color="#000000" title="Black" style="background:#000000;width:32px;height:32px;border:none;margin-bottom:4px;"></button>
+      <button class="palette-color-btn" data-color="#ffffff" title="White" style="background:#ffffff;width:32px;height:32px;border:1px solid #ccc;margin-bottom:4px;"></button>
+    </div>
+  </div>
+
+        <!-- Toasts and Debug (optional) -->
+        <div id="toast-container"></div>
+        <div id="debug-overlay" role="log" aria-live="polite" aria-label="Debug log">
+            <div class="dbg-head"><span class="dbg-title">Debug</span><button onclick="document.getElementById('debug-overlay').style.display='none'">Hide</button></div>
+            <div id="debug-lines"></div>
         </div>
     <script>
+    // --- Cesium ion token bootstrap (optional) ---
+    (function initIonToken(){
+      try {
+        const params = new URLSearchParams(location.search);
+        const fromQS = params.get('ionToken');
+        const fromLS = localStorage.getItem('CESIUM_ION_TOKEN');
+        const token = fromQS || fromLS;
+        if (token && typeof Cesium !== 'undefined') {
+          Cesium.Ion.defaultAccessToken = token;
+          if (fromQS && !fromLS) localStorage.setItem('CESIUM_ION_TOKEN', fromQS);
+        }
+      } catch(_) { /* noop */ }
+    })();
+
         // Initialize Cesium Viewer
-        const viewer = new Cesium.Viewer('cesiumContainer', {
-            imageryProvider: new Cesium.ArcGisMapServerImageryProvider({
-                url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
-            }), // ArcGIS World Imagery
-            baseLayerPicker: true,
-            geocoder: true,
-            timeline: false,
-            animation: false
-        });
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      imageryProvider: new Cesium.ArcGisMapServerImageryProvider({
+        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+      }), // ArcGIS World Imagery
+      baseLayerPicker: true,
+      geocoder: true,
+      timeline: false,
+      animation: false,
+      terrainProvider: undefined // will enable World Terrain if ion token is present
+    });
+
+    // Optional terrain + OSM buildings when Ion token available
+    (function enableTerrainAndBuildings(){
+      try {
+        if (Cesium.Ion.defaultAccessToken && Cesium.Ion.defaultAccessToken.length > 0) {
+          viewer.terrainProvider = Cesium.createWorldTerrain({ requestVertexNormals: true, requestWaterMask: true });
+          // OSM Buildings (requires Ion)
+          viewer.scene.primitives.add(Cesium.createOsmBuildings());
+        }
+      } catch (err) {
+        console.warn('Ion features not enabled:', err);
+      }
+    })();
+
+    // Improve depth testing so billboards/objects respect terrain
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+
+    // Base layer switching and terrain toggle
+    (function setupBaseLayers(){
+      const baseSel = document.getElementById('baseLayerSelect');
+      const terrainToggle = document.getElementById('terrainToggle');
+      const layers = viewer.imageryLayers;
+      function setBase(name){
+        try {
+          // Remove all and add desired provider
+          while (layers.length > 0) layers.remove(layers.get(0), true);
+          if (name === 'osm') {
+            layers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/' }));
+          } else {
+            layers.addImageryProvider(new Cesium.ArcGisMapServerImageryProvider({ url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer' }));
+          }
+        } catch(err){ console.warn('Base layer switch failed', err); }
+      }
+      baseSel && baseSel.addEventListener('change', () => setBase(baseSel.value));
+      // Initialize checkbox state
+      const hasIon = !!(Cesium.Ion.defaultAccessToken && Cesium.Ion.defaultAccessToken.length);
+      if (!hasIon) {
+        if (terrainToggle) { terrainToggle.checked = false; terrainToggle.disabled = true; terrainToggle.title = 'Requires Cesium Ion token'; }
+      } else {
+        if (terrainToggle) terrainToggle.checked = viewer.terrainProvider && !(viewer.terrainProvider instanceof Cesium.EllipsoidTerrainProvider);
+      }
+      terrainToggle && terrainToggle.addEventListener('change', () => {
+        const enable = terrainToggle.checked;
+        if (enable) {
+          if (!hasIon) { alert('World Terrain requires a Cesium Ion token.'); terrainToggle.checked = false; return; }
+          viewer.terrainProvider = Cesium.createWorldTerrain({ requestVertexNormals: true, requestWaterMask: true });
+        } else {
+          viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+        }
+      });
+    })();
 
         // Make sure the Base Layer Picker also selects ArcGIS World Imagery by default
         if (viewer.baseLayerPicker && viewer.baseLayerPicker.viewModel) {
@@ -91,23 +572,23 @@
             }
         }
 
-        // Example: Add a marker (billboard)
-        viewer.entities.add({
-            position: Cesium.Cartesian3.fromDegrees(106.8272, -6.1751), // Jakarta
-            billboard: {
-                image: 'image/IconTankG.jpg',
-                width: 32,
-                height: 32
-            },
-            name: 'Tank Marker'
-        });
+    // Example: Add a marker (billboard)
+    viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(106.8272, -6.1751), // Jakarta
+      billboard: {
+        image: 'image/IconTankG.jpg',
+        width: 32,
+        height: 32
+      },
+      name: 'Tank Marker'
+    });
 
         // Example: Fly to a location
         viewer.camera.flyTo({
             destination: Cesium.Cartesian3.fromDegrees(106.8272, -6.1751, 100000)
         });
 
-        // Add 3D Object Interface
+    // Add 3D Object Interface
         function add3DObject() {
             // Use querySelector to avoid duplicate IDs
             const type = document.querySelector('#toolbar #objectType').value;
@@ -151,7 +632,7 @@
                 }
             };
 
-            const entity = viewer.entities.add(entityOptions);
+      const entity = viewer.entities.add(entityOptions);
             // Fly to the entity so it's visible immediately
             viewer.flyTo(entity).catch(() => {
                 // fallback camera move if flyTo fails
@@ -159,6 +640,24 @@
                     destination: Cesium.Cartesian3.fromDegrees(lon, lat, Math.max(500, height + 500))
                 });
             });
+      // Persist user-added 3D entity
+      try {
+        entity.__userAdded = true;
+        const storeKey = 'cesiumUserEntities.v1';
+        const raw = localStorage.getItem(storeKey);
+        const arr = raw ? JSON.parse(raw) : [];
+        arr.push({ type, lon, lat, height, uri: modelUri, name: entity.name || type });
+        localStorage.setItem(storeKey, JSON.stringify(arr));
+      } catch(_) {}
+      // Add to action history for Undo
+      try {
+        if (window && window.__cesiumActionHistory && Array.isArray(window.__cesiumActionHistory)) {
+          window.__cesiumActionHistory.push({ type: 'entity', ref: entity });
+        } else if (typeof actionHistory !== 'undefined') {
+          actionHistory.push({ type: 'entity', ref: entity });
+        }
+        if (typeof updateUndoUI === 'function') updateUndoUI();
+      } catch(_){}
         }
 
         function goToLatLon() {
@@ -173,6 +672,22 @@
                 destination: Cesium.Cartesian3.fromDegrees(lon, lat, isNaN(alt) ? 10000 : alt)
             });
         }
+
+    // Geolocate button: fly to user's approximate position
+    (function setupGeolocate(){
+      const btn = document.getElementById('btnGeolocate');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        if (!('geolocation' in navigator)) { alert('Geolocation is not supported in this browser.'); return; }
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          const alt = Math.min(Math.max(accuracy * 10, 500), 20000); // rough camera height based on accuracy
+          viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(longitude, latitude, alt) });
+        }, (err) => {
+          alert('Geolocation failed: ' + err.message + '\nTip: use HTTPS or localhost.');
+        }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+      });
+    })();
 
         // Search by text using OSM Nominatim and fly to the first result
         async function searchAndGo() {
@@ -249,6 +764,753 @@
 
         // Initialize the live updater
         setupLiveLonLatAltFromMouse();
+
+    // Restore user-added 3D entities on load
+    (function restoreUserEntities(){
+      try {
+        const storeKey = 'cesiumUserEntities.v1';
+        const raw = localStorage.getItem(storeKey);
+        if (!raw) return;
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return;
+        arr.forEach(item => {
+          if (!item || typeof item.lon !== 'number' || typeof item.lat !== 'number' || !item.uri) return;
+          const e = viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(item.lon, item.lat, item.height||0),
+            name: item.name || (item.type||'Object'),
+            model: { uri: item.uri, minimumPixelSize: 64, maximumScale: 200 }
+          });
+          e.__userAdded = true;
+        });
+      } catch(err) { console.warn('Failed to restore entities', err); }
+    })();
+
+        // --- Panels logic (UI only) ---
+    (function(){
+            const toolsPanel = document.getElementById('tools-panel');
+            const drawBtn = document.getElementById('draw-btn');
+            const drawImg = document.getElementById('draw-btn-img');
+            let toolsPanelOpen = false;
+
+            function setToolsPanelVisible(show){
+                toolsPanelOpen = !!show;
+                if (toolsPanel) toolsPanel.style.display = toolsPanelOpen ? 'block' : 'none';
+        // If only tools panel state changes, don't override drawing active icon.
+            }
+
+      if (drawBtn) {
+        drawBtn.addEventListener('click', function(e){
+          e.preventDefault();
+          const wasOpen = !!toolsPanelOpen;
+          setToolsPanelVisible(!wasOpen);
+          // When opening, also activate drawing if not already active
+          if (!wasOpen && window.__cesiumDraw && typeof window.__cesiumDraw.isFreehand === 'function' && typeof window.__cesiumDraw.setFreehand === 'function') {
+            if (!window.__cesiumDraw.isFreehand()) {
+              window.__cesiumDraw.setFreehand(true);
+            }
+          }
+          // When closing, keep current drawing state as-is (decoupled from panel visibility)
+        });
+        // Right-click toggles panel only
+        drawBtn.addEventListener('contextmenu', function(e){
+          e.preventDefault();
+          setToolsPanelVisible(!toolsPanelOpen);
+        });
+      }
+
+            // Close tools panel on outside click (optional)
+            document.addEventListener('click', function(e){
+                const t = e.target;
+                if (!toolsPanelOpen) return;
+                if (!toolsPanel.contains(t) && t !== drawBtn && !drawBtn.contains(t)) {
+                    setToolsPanelVisible(false);
+                }
+            });
+
+            // Basic tool button selection behavior (toggle image G/L and selected class)
+            const toolBtnIds = [
+                'tank-btn','uav-btn','jetfighter-btn','helicopter-btn','submarine-btn','battleship-btn',
+                'soldier-action-btn','soldier-standing-btn','explosion-btn','flashpoint-btn'
+            ];
+            function toActiveSrc(src){ return src ? src.replace(/G(\.jpg|\.png)$/i, 'L$1') : src; }
+            function toInactiveSrc(src){ return src ? src.replace(/L(\.jpg|\.png)$/i, 'G$1') : src; }
+            let lastSelected = null;
+            toolBtnIds.forEach(id => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.addEventListener('click', function(){
+                    if (lastSelected && lastSelected !== btn) {
+                        lastSelected.classList.remove('selected');
+                        const imgPrev = lastSelected.querySelector('img');
+                        if (imgPrev) imgPrev.src = toInactiveSrc(imgPrev.getAttribute('src'));
+                    }
+                    const img = btn.querySelector('img');
+                    const wasSelected = btn.classList.toggle('selected');
+                    if (img) img.src = wasSelected ? toActiveSrc(img.getAttribute('src')) : toInactiveSrc(img.getAttribute('src'));
+                    lastSelected = wasSelected ? btn : null;
+                });
+            });
+
+            // Undo / Clear toasts (UI feedback only)
+      const toastc = document.getElementById('toast-container');
+      function toast(msg, ms=1500){
+                if (!toastc) return;
+                const d = document.createElement('div'); d.className='toast'; d.textContent = msg; toastc.appendChild(d);
+                setTimeout(()=>{ if (d.parentNode) d.parentNode.removeChild(d); }, ms);
+            }
+      const undoBtn = document.getElementById('undo-btn');
+      const clearBtn = document.getElementById('clear-btn');
+      // clearBtn wired after drawing/measuring setup below
+
+      // Select/Measure buttons toggle selected UI only (Move handled separately)
+      ['select-mode-btn','measure-btn'].forEach(id => {
+                const b = document.getElementById(id);
+                if (!b) return;
+                b.addEventListener('click', function(){ b.classList.toggle('selected'); });
+            });
+
+            // Optional: expose a tiny API for future wiring
+      window.__cesiumPanels = { setToolsPanelVisible };
+        })();
+
+    // --- Freehand drawing and measuring ---
+    (function(){
+            const canvas = viewer.scene.canvas;
+      const scene = viewer.scene;
+      const globe = scene.globe;
+      const ellipsoid = Cesium.Ellipsoid.WGS84;
+            const camCtl = viewer.scene.screenSpaceCameraController;
+
+      // Containers for drawings
+            const freehandPolylines = [];
+      const measureItems = []; // {polyline, label}
+      const actionHistory = []; // stack: {type:'freehand'|'measure'|'entity', ref:..., extra}
+
+      function updateUndoUI(){
+        const img = document.getElementById('undo-btn-img');
+        if (img) img.style.opacity = actionHistory.length > 0 ? '1' : '0.5';
+      }
+
+      function pickCartesian(pos) {
+        const ray = viewer.camera.getPickRay(pos);
+        if (ray) {
+          const c = globe.pick(ray, scene);
+          if (c) return c;
+        }
+        return viewer.camera.pickEllipsoid(pos, ellipsoid);
+      }
+      function cartesianToLonLat(cart){
+        try {
+          const cc = Cesium.Cartographic.fromCartesian(cart);
+          return [Cesium.Math.toDegrees(cc.longitude), Cesium.Math.toDegrees(cc.latitude)];
+        } catch(_) { return null; }
+      }
+      function toCartesianArrayFromLLH(degList, heightMeters){
+        const arr = [];
+        for (let i=0;i<degList.length;i++){
+          const p = degList[i];
+          arr.push(Cesium.Cartesian3.fromDegrees(p[0], p[1], heightMeters));
+        }
+        return arr;
+      }
+      function distanceMetersLL(a, b){
+        const g = new Cesium.EllipsoidGeodesic(
+          Cesium.Cartographic.fromDegrees(a[0], a[1]),
+          Cesium.Cartographic.fromDegrees(b[0], b[1])
+        );
+        return g.surfaceDistance;
+      }
+      // Ramer–Douglas–Peucker simplification on [lon,lat] with geodesic distances
+      function rdp(points, epsilonMeters){
+        if (!points || points.length < 3) return points ? points.slice() : [];
+        function maxDistIdx(pts){
+          let maxD = -1, idx = -1;
+          const start = pts[0], end = pts[pts.length-1];
+          for (let i=1;i<pts.length-1;i++){
+            const d = perpendicularDistanceMeters(pts[i], start, end);
+            if (d > maxD){ maxD = d; idx = i; }
+          }
+          return {maxD, idx};
+        }
+        function perpendicularDistanceMeters(p, a, b){
+          // Approximate using area-based distance via geodesic segments
+          // d = area*2/|ab|; compute along-track with small approximation
+          const dAB = distanceMetersLL(a,b);
+          if (dAB === 0) return distanceMetersLL(p,a);
+          // Sample point projection by fraction along AB using distances
+          const dAP = distanceMetersLL(a,p);
+          const dBP = distanceMetersLL(b,p);
+          const cosAngle = (dAP*dAP + dAB*dAB - dBP*dBP) / (2*dAP*dAB);
+          const along = isFinite(cosAngle) ? Math.max(0, Math.min(dAB, dAP * (cosAngle))) : 0;
+          const cross = Math.sqrt(Math.max(0, dAP*dAP - along*along));
+          return cross;
+        }
+        function simplify(pts){
+          const {maxD, idx} = maxDistIdx(pts);
+          if (maxD > epsilonMeters){
+            const left = simplify(pts.slice(0, idx+1));
+            const right = simplify(pts.slice(idx));
+            return left.slice(0, -1).concat(right);
+          }
+          return [pts[0], pts[pts.length-1]];
+        }
+        return simplify(points);
+      }
+
+      // ---------- Freehand ----------
+            let freehandActive = false;
+      let fhHandler = null;
+            let fhLLPositions = []; // [[lon,lat], ...] while drawing
+            let fhLast2D = null;
+            let fhPolyline = null;
+            let fhSavedCursor = null;
+            let fhRafScheduled = false;
+            let fhPending2D = null;
+            let currentLineColor = Cesium.Color.YELLOW.clone();
+            let currentLineWidth = 4;
+            let moveActive = false;
+
+      // Centralized camera lock policy: map moves only when moveActive is true
+      function setCameraEnabled(enabled){
+        camCtl.enableRotate = !!enabled;
+        camCtl.enableTranslate = !!enabled;
+        camCtl.enableZoom = !!enabled;
+        camCtl.enableTilt = !!enabled;
+        camCtl.enableLook = !!enabled;
+      }
+      function updateCameraLockPolicy(){
+        const canMove = !!moveActive; // strict policy
+        setCameraEnabled(canMove);
+        // Cursor hints
+        if (freehandActive || measureActive) {
+          canvas.style.cursor = 'crosshair';
+        } else if (canMove) {
+          canvas.style.cursor = '';
+        } else {
+          canvas.style.cursor = '';
+        }
+      }
+
+      function syncFreehandButtons(){
+        const btn = document.getElementById('btnFreehand');
+        if (btn) btn.classList.toggle('selected', freehandActive);
+        const img = document.getElementById('draw-btn-img');
+        if (img) img.src = freehandActive ? 'image/IconDrawingL.jpg' : 'image/IconDrawingG.jpg';
+      }
+
+      function setFreehandActive(active){
+        freehandActive = !!active;
+        syncFreehandButtons();
+        // Update lock according to strict policy
+        updateCameraLockPolicy();
+        if (!freehandActive && fhHandler) { fhHandler.destroy(); fhHandler = null; }
+        if (freehandActive && !fhHandler) {
+            fhHandler = new Cesium.ScreenSpaceEventHandler(canvas);
+          fhHandler.setInputAction((mousedown)=>{
+            fhLLPositions = [];
+            fhLast2D = mousedown.position;
+            const first = pickCartesian(mousedown.position);
+            if (!first) return;
+            const ll = cartesianToLonLat(first);
+            if (!ll) return;
+            fhLLPositions.push(ll);
+            const dynamicPositions = new Cesium.CallbackProperty(()=> toCartesianArrayFromLLH(fhLLPositions, 100), false);
+            fhPolyline = viewer.entities.add({ polyline: { positions: dynamicPositions, width: currentLineWidth, material: new Cesium.PolylineGlowMaterialProperty({ color: currentLineColor, glowPower: 0.2 }) } });
+          }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+          fhHandler.setInputAction((move)=>{
+            if (!fhPolyline || !fhLast2D) return;
+            fhPending2D = move.endPosition;
+            if (!fhRafScheduled){
+              fhRafScheduled = true;
+              requestAnimationFrame(()=>{
+                try {
+                  if (!fhPending2D) { fhRafScheduled = false; return; }
+                  const p = fhPending2D;
+                  const dx = p.x - fhLast2D.x, dy = p.y - fhLast2D.y;
+                  if ((dx*dx + dy*dy) >= 36){
+                    const c = pickCartesian(p);
+                    const ll = c ? cartesianToLonLat(c) : null;
+                    if (ll) { fhLLPositions.push(ll); fhLast2D = p; }
+                  }
+                } finally { fhRafScheduled = false; fhPending2D = null; }
+              });
+            }
+          }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+          fhHandler.setInputAction(()=>{
+            if (fhPolyline) {
+              // Finalize: simplify and clamp to terrain+100m if available
+              const raw = fhLLPositions.slice();
+              const simplified = rdp(raw, 3); // 3 meters tolerance
+              const cartos = simplified.map(p => Cesium.Cartographic.fromDegrees(p[0], p[1]));
+              const provider = viewer.terrainProvider;
+              const isEllipsoid = (provider instanceof Cesium.EllipsoidTerrainProvider);
+              const finishWithHeights = (heights)=>{
+                const positions = [];
+                for (let i=0;i<simplified.length;i++){
+                  const h = (heights && heights[i] != null) ? (heights[i] + 100.0) : 100.0;
+                  positions.push(Cesium.Cartesian3.fromDegrees(simplified[i][0], simplified[i][1], h));
+                }
+                fhPolyline.polyline.positions = positions;
+                fhPolyline.polyline.width = currentLineWidth;
+                fhPolyline.polyline.material = new Cesium.PolylineGlowMaterialProperty({ color: currentLineColor, glowPower: 0.2 });
+                freehandPolylines.push(fhPolyline);
+                actionHistory.push({ type: 'freehand', ref: fhPolyline });
+                updateUndoUI();
+                fhPolyline = null;
+              };
+              if (!isEllipsoid && Cesium.sampleTerrainMostDetailed) {
+                Cesium.when(Cesium.sampleTerrainMostDetailed(provider, cartos), function(updated){
+                  try { finishWithHeights(updated.map(c => c.height)); } catch(_){ finishWithHeights(null); }
+                }).otherwise(function(){ finishWithHeights(null); });
+              } else {
+                finishWithHeights(null);
+              }
+            }
+            fhLast2D = null;
+          }, Cesium.ScreenSpaceEventType.LEFT_UP);
+        }
+      }
+      const btnFH = document.getElementById('btnFreehand');
+      btnFH && btnFH.addEventListener('click', ()=> setFreehandActive(!freehandActive));
+
+      // Expose control so right panel draw button can toggle
+      window.__cesiumDraw = {
+        toggleFreehand: ()=> setFreehandActive(!freehandActive),
+        setFreehand: setFreehandActive,
+        isFreehand: ()=> freehandActive
+      };
+
+      // ---------- Measuring ----------
+      let measureActive = false;
+      let msHandler = null;
+      let msPositionsFixed = [];
+      let msHover = null;
+      let msPolyline = null;
+      let msLabel = null;
+
+      function formatDistance(meters){
+        if (meters >= 1000) return (meters/1000).toFixed(2) + ' km';
+        return Math.round(meters) + ' m';
+      }
+      function computeTotalDistance(cartesians){
+        if (!cartesians || cartesians.length < 2) return 0;
+        let total = 0;
+        for (let i=1;i<cartesians.length;i++){
+          const c0 = Cesium.Cartographic.fromCartesian(cartesians[i-1]);
+          const c1 = Cesium.Cartographic.fromCartesian(cartesians[i]);
+          const g = new Cesium.EllipsoidGeodesic(c0, c1);
+          total += g.surfaceDistance;
+        }
+        return total;
+      }
+      function updateMeasureEntities(){
+        if (!msPolyline) return;
+        const positions = msPositionsFixed.slice();
+        if (msHover) positions.push(msHover);
+        // Replace positions via CallbackProperty
+        if (!msPolyline.polyline.positions || !(msPolyline.polyline.positions instanceof Cesium.CallbackProperty)){
+          msPolyline.polyline.positions = new Cesium.CallbackProperty(()=>{
+            const arr = msPositionsFixed.slice();
+            return msHover ? arr.concat([msHover]) : arr;
+          }, false);
+        }
+        const dist = computeTotalDistance(positions);
+        const last = positions[positions.length-1];
+        if (last){
+          const text = positions.length>=2 ? ('Total: ' + formatDistance(dist)) : 'Click to add points, right-click to finish';
+          if (!msLabel){
+            msLabel = viewer.entities.add({ position: last, label: { text, font: '14px sans-serif', fillColor: Cesium.Color.WHITE, showBackground: true, backgroundColor: new Cesium.Color(0,0,0,0.6), pixelOffset: new Cesium.Cartesian2(0,-20) } });
+          } else {
+            msLabel.position = last;
+            msLabel.label.text = text;
+          }
+        }
+      }
+      function setMeasureActive(active){
+        measureActive = !!active;
+        const btn = document.getElementById('measure-btn');
+        if (btn) btn.classList.toggle('selected', measureActive);
+        // Update ruler icon
+        const mImg = document.getElementById('measure-btn-img');
+        if (mImg) mImg.src = measureActive ? 'image/IconRulerL.jpg' : 'image/IconRulerG.jpg';
+        if (!measureActive && msHandler) { msHandler.destroy(); msHandler = null; }
+        if (measureActive && !msHandler){
+          msPositionsFixed = [];
+          msHover = null;
+          msPolyline = viewer.entities.add({ polyline: { positions: [], width: 3, material: Cesium.Color.CYAN } });
+          msHandler = new Cesium.ScreenSpaceEventHandler(canvas);
+          msHandler.setInputAction((click)=>{
+            const c = pickCartesian(click.position);
+            if (!c) return;
+            msPositionsFixed.push(c);
+            updateMeasureEntities();
+          }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+          msHandler.setInputAction((move)=>{
+            msHover = pickCartesian(move.endPosition);
+            updateMeasureEntities();
+          }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+          function finish(){
+            if (msHandler) { msHandler.destroy(); msHandler = null; }
+            const positions = msPositionsFixed.slice();
+            if (positions.length < 2){
+              // remove empty measurement
+              if (msPolyline) { viewer.entities.remove(msPolyline); msPolyline = null; }
+              if (msLabel) { viewer.entities.remove(msLabel); msLabel = null; }
+            } else {
+              // finalize and store
+              msHover = null; updateMeasureEntities();
+              const item = { polyline: msPolyline, label: msLabel };
+              measureItems.push(item);
+              actionHistory.push({ type: 'measure', ref: item });
+              updateUndoUI();
+              msPolyline = null; msLabel = null;
+            }
+            measureActive = false;
+            const btn = document.getElementById('measure-btn');
+            if (btn) btn.classList.remove('selected');
+          }
+          msHandler.setInputAction(finish, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+          msHandler.setInputAction(finish, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+        }
+        updateCameraLockPolicy();
+      }
+      const btnMeasure = document.getElementById('measure-btn');
+      btnMeasure && btnMeasure.addEventListener('click', (e)=>{
+        // toggle measuring mode
+        if (!measureActive) setMeasureActive(true); else setMeasureActive(false);
+        e.stopPropagation();
+      });
+
+      // ---------- Move mode (enables camera controls and turns off other tools) ----------
+      function setMoveActive(active){
+        moveActive = !!active;
+        const moveImg = document.getElementById('move-btn-img');
+        if (moveImg) moveImg.src = moveActive ? 'image/IconMoveL.jpg' : 'image/IconMoveG.jpg';
+        // Turn off other tools when enabling move
+        if (moveActive){
+          if (freehandActive) setFreehandActive(false);
+          if (measureActive) setMeasureActive(false);
+        }
+        updateCameraLockPolicy();
+      }
+      const moveBtn = document.getElementById('move-btn');
+      moveBtn && moveBtn.addEventListener('click', (e)=>{
+        setMoveActive(!moveActive);
+        e.stopPropagation();
+      });
+
+      // Initialize strict lock (Move off by default)
+      updateCameraLockPolicy();
+
+      // ---------- Clear buttons ----------
+      function clearDrawings(){
+        // freehand polylines
+        freehandPolylines.forEach(e => viewer.entities.remove(e));
+        freehandPolylines.length = 0;
+        // measure items
+        measureItems.forEach(item => { viewer.entities.remove(item.polyline); viewer.entities.remove(item.label); });
+        measureItems.length = 0;
+        // active ones
+        if (msPolyline) { viewer.entities.remove(msPolyline); msPolyline = null; }
+        if (msLabel) { viewer.entities.remove(msLabel); msLabel = null; }
+        // clear history entries for drawings/measures only
+        for (let i = actionHistory.length - 1; i >= 0; i--) {
+          if (actionHistory[i].type === 'freehand' || actionHistory[i].type === 'measure') {
+            actionHistory.splice(i, 1);
+          }
+        }
+        updateUndoUI();
+      }
+      function clearEntities(){
+        const storeKey = 'cesiumUserEntities.v1';
+        try { localStorage.removeItem(storeKey); } catch(_){ }
+        const toRemove = viewer.entities.values.filter(e => e.__userAdded === true);
+        toRemove.forEach(e => viewer.entities.remove(e));
+        // remove related history entries
+        for (let i = actionHistory.length - 1; i >= 0; i--) {
+          if (actionHistory[i].type === 'entity') actionHistory.splice(i, 1);
+        }
+        updateUndoUI();
+      }
+      const btnClearDraw = document.getElementById('btnClearDrawings');
+      btnClearDraw && btnClearDraw.addEventListener('click', clearDrawings);
+      const btnClearEntities = document.getElementById('btnClearEntities');
+      btnClearEntities && btnClearEntities.addEventListener('click', clearEntities);
+
+      // Also wire legacy clear button in right panel
+      const clearBtn = document.getElementById('clear-btn');
+      clearBtn && clearBtn.addEventListener('click', clearDrawings);
+
+      // Undo logic: remove last action (freehand/measure/entity)
+      function undoLast(){
+        const last = actionHistory.pop();
+        if (!last) { updateUndoUI(); return; }
+        if (last.type === 'freehand' && last.ref) {
+          viewer.entities.remove(last.ref);
+          const idx = freehandPolylines.indexOf(last.ref);
+          if (idx !== -1) freehandPolylines.splice(idx, 1);
+        } else if (last.type === 'measure' && last.ref) {
+          try { viewer.entities.remove(last.ref.polyline); } catch(_){ }
+          try { viewer.entities.remove(last.ref.label); } catch(_){ }
+          const idx = measureItems.indexOf(last.ref);
+          if (idx !== -1) measureItems.splice(idx, 1);
+        } else if (last.type === 'entity' && last.ref) {
+          try { viewer.entities.remove(last.ref); } catch(_){ }
+          // remove from persisted store
+          try {
+            const storeKey = 'cesiumUserEntities.v1';
+            const raw = localStorage.getItem(storeKey);
+            const arr = raw ? JSON.parse(raw) : [];
+            if (Array.isArray(arr) && arr.length > 0) { arr.pop(); localStorage.setItem(storeKey, JSON.stringify(arr)); }
+          } catch(_){}
+        }
+        updateUndoUI();
+      }
+      undoBtn && undoBtn.addEventListener('click', undoLast);
+      updateUndoUI();
+
+      // --- Wire line color buttons (tools panel) ---
+      (function wireLineColors(){
+        const lineMap = [
+          ['line-red-btn', Cesium.Color.RED],
+          ['line-blue-btn', Cesium.Color.BLUE],
+          ['line-yellow-btn', Cesium.Color.fromCssColorString('#ffd000')]
+        ];
+        function selectBtn(id){
+          lineMap.forEach(([bid])=>{ const el = document.getElementById(bid); if (el) el.classList.toggle('selected', bid===id); });
+        }
+        function applyLineColor(col){
+          currentLineColor = col.clone ? col.clone() : col;
+          if (fhPolyline && fhPolyline.polyline) {
+            fhPolyline.polyline.material = new Cesium.PolylineGlowMaterialProperty({ color: currentLineColor, glowPower: 0.2 });
+          }
+        }
+        lineMap.forEach(([id, col])=>{
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener('click', function(){ selectBtn(id); applyLineColor(col); });
+        });
+        // Also accept clicks on Area color buttons to drive line color for now (UX parity)
+        const areaMap = [
+          ['area-red-btn', Cesium.Color.RED],
+          ['area-blue-btn', Cesium.Color.BLUE],
+          ['area-yellow-btn', Cesium.Color.fromCssColorString('#ffd000')]
+        ];
+        areaMap.forEach(([id, col])=>{
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.addEventListener('click', function(){ applyLineColor(col); });
+        });
+        // Optional: accept vertical palette if shown
+        document.querySelectorAll('#color-palette-panel .palette-color-btn').forEach(btn => {
+          btn.addEventListener('click', function(){
+            const hex = this.getAttribute('data-color');
+            if (!hex) return;
+            try { applyLineColor(Cesium.Color.fromCssColorString(hex)); } catch(_){}
+          });
+        });
+      })();
+
+      // Expose a tiny API for tuning width programmatically
+      if (!window.__cesiumDraw) window.__cesiumDraw = {};
+      window.__cesiumDraw.setLineWidth = function(w){
+        const v = Math.max(1, Math.min(12, Number(w)||4));
+        currentLineWidth = v;
+        if (fhPolyline && fhPolyline.polyline) fhPolyline.polyline.width = v;
+      };
+    })();
+
+    // --- Saved locations (5 slots): click=recall, Shift+click=save, Alt+click=clear ---
+    (function(){
+      const SLOTS = 5;
+      const KEY = 'cesiumSavedLocations.v1';
+      let saved = new Array(SLOTS).fill(null);
+
+      function isFiniteNumber(n){ return typeof n === 'number' && isFinite(n); }
+      function isValidView(v){
+        if (!v) return false;
+        const okLon = isFiniteNumber(v.lon) && v.lon >= -180 && v.lon <= 180;
+        const okLat = isFiniteNumber(v.lat) && v.lat >= -90 && v.lat <= 90;
+        const okH   = isFiniteNumber(v.height) && v.height >= 0;
+        const okHeading = isFiniteNumber(v.heading);
+        const okPitch   = isFiniteNumber(v.pitch);
+        const okRoll    = isFiniteNumber(v.roll);
+        return okLon && okLat && okH && okHeading && okPitch && okRoll;
+      }
+
+            // Toast helper
+            function toast(msg, ms=1400){
+                const c = document.getElementById('toast-container'); if (!c) return;
+                const d = document.createElement('div'); d.className='toast'; d.textContent = msg; c.appendChild(d);
+                setTimeout(()=>{ if (d.parentNode) d.parentNode.removeChild(d); }, ms);
+            }
+
+      function load(){
+                try {
+                    const raw = localStorage.getItem(KEY);
+                    if (!raw) return;
+                    const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) {
+            const tmp = arr.slice(0, SLOTS).concat(new Array(Math.max(0,SLOTS-arr.length)).fill(null));
+            // sanitize invalid legacy entries
+            saved = tmp.map(v => isValidView(v) ? v : null);
+          }
+                } catch(_){ /* ignore */ }
+            }
+            function persist(){
+                try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch(_){ }
+            }
+
+      function getCameraView(){
+        // Prefer the globe point at the screen center as the target; fallback to camera position
+        const canvas = viewer.scene.canvas;
+        const center = new Cesium.Cartesian2(canvas.clientWidth * 0.5, canvas.clientHeight * 0.5);
+        let pickedCartesian = null;
+        const ray = viewer.camera.getPickRay(center);
+        if (ray) pickedCartesian = viewer.scene.globe.pick(ray, viewer.scene);
+        if (!pickedCartesian) pickedCartesian = viewer.camera.pickEllipsoid(center, viewer.scene.globe.ellipsoid);
+
+        let carto;
+        if (pickedCartesian) {
+          carto = Cesium.Cartographic.fromCartesian(pickedCartesian);
+        } else {
+          // Fallback: use camera cartographic position
+          carto = viewer.camera.positionCartographic;
+        }
+        const lon = Cesium.Math.toDegrees(carto.longitude);
+        const lat = Cesium.Math.toDegrees(carto.latitude);
+        // Use the camera height so returning preserves zoom/distance
+        const height = viewer.camera.positionCartographic.height;
+        const heading = viewer.camera.heading;
+        const pitch = viewer.camera.pitch;
+        const roll = viewer.camera.roll;
+        return { lon, lat, height, heading, pitch, roll };
+            }
+            function flyToView(v){
+                if (!isValidView(v)) return false;
+        // Use setView for a reliable, immediate move (not affected by camera controller locks)
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(v.lon, v.lat, Math.max(10, v.height || 1000)),
+          orientation: { heading: v.heading||0, pitch: v.pitch||-0.5, roll: v.roll||0 }
+        });
+                return true;
+      }
+
+      function updateButtons(){
+        for (let i=1;i<=SLOTS;i++){
+          const btn = document.getElementById('location-'+i);
+          if (!btn) continue;
+          const has = !!saved[i-1];
+          btn.classList.toggle('saved', has);
+          // ensure saved badge exists
+          const wrap = btn.querySelector('.map-btn-img');
+          if (wrap && !wrap.querySelector('.saved-dot')){
+            const dot = document.createElement('span');
+            dot.className = 'saved-dot';
+            wrap.appendChild(dot);
+          }
+          // swap icon G/L for visual state
+          const img = document.getElementById('location-img-'+i);
+          if (img) img.src = has ? 'image/IconMapL.jpg' : 'image/IconMapG.jpg';
+          if (has){
+            const v = saved[i-1];
+            btn.title = `Location ${i} (saved)\nClick: go  Shift: save  Alt: clear\n${v.lon.toFixed(6)}, ${v.lat.toFixed(6)}  h=${Math.round(v.height)}m`;
+          } else {
+            btn.title = `Location ${i} (empty)\nClick: save  Shift: save  Alt: clear`;
+          }
+        }
+      }
+
+      function onSlotClick(i, ev){
+                ev.preventDefault();
+        if (ev.altKey){ // clear
+                    saved[i-1] = null; persist(); updateButtons(); toast(`Cleared Location ${i}`); return;
+                }
+        // Memorize mode: save; Go mode: go
+        const memActive = window.__cesiumMode ? window.__cesiumMode.isMemorize() : true;
+        if (memActive || ev.shiftKey){ // save when memorize or Shift override
+      saved[i-1] = getCameraView(); persist(); updateButtons(); toast(`Saved Location ${i}`);
+      const btn = document.getElementById('location-' + i); if (btn){ btn.classList.add('pulse'); setTimeout(()=>btn.classList.remove('pulse'), 700); }
+          return;
+                }
+                // default: recall if exists and valid; otherwise save
+                const slot = saved[i-1];
+                if (slot && isValidView(slot)){
+                  const ok = flyToView(slot);
+                  if (ok) { toast(`Going to Location ${i}`); }
+                  else {
+                    // invalid; resave current view
+                    saved[i-1] = getCameraView(); persist(); updateButtons(); toast(`Slot ${i} was invalid, saved current view`);
+                    const btn = document.getElementById('location-' + i); if (btn){ btn.classList.add('pulse'); setTimeout(()=>btn.classList.remove('pulse'), 700); }
+                  }
+                } else {
+                    saved[i-1] = getCameraView(); persist(); updateButtons(); toast(`Saved Location ${i}`);
+                    const btn = document.getElementById('location-' + i); if (btn){ btn.classList.add('pulse'); setTimeout(()=>btn.classList.remove('pulse'), 700); }
+                }
+            }
+
+      // init
+            load();
+      for (let i=1;i<=SLOTS;i++){
+        const btn = document.getElementById('location-'+i);
+        if (!btn) continue;
+        btn.addEventListener('click', onSlotClick.bind(null, i));
+      }
+            updateButtons();
+
+      // Keyboard shortcuts: 1..5 save/recall depending on mode; Alt clears
+      function isTypingTarget(t){
+        if (!t) return false;
+        const tag = (t.tagName||'').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+        if (t.isContentEditable) return true;
+        return false;
+      }
+      document.addEventListener('keydown', function(e){
+        try {
+          if (isTypingTarget(e.target)) return;
+          if (e.repeat) return;
+          const code = e.code || '';
+          let idx = null;
+          if (code.startsWith('Digit')) idx = parseInt(code.slice(5),10);
+          else if (code.startsWith('Numpad')) idx = parseInt(code.slice(6),10);
+          else if (e.key && /^[1-5]$/.test(e.key)) idx = parseInt(e.key,10);
+          if (!idx || idx < 1 || idx > SLOTS) return;
+          e.preventDefault();
+          // emulate click behavior per mode
+          const fakeEv = { preventDefault(){}, altKey: !!e.altKey, shiftKey: !!e.shiftKey };
+          onSlotClick(idx, fakeEv);
+        } catch(_){}
+      });
+        })();
     </script>
+  <script>
+    // --- Mode switching (Memorize vs Go) ---
+    (function(){
+      let memorizeMode = true; // default: disk icon blue (L)
+      const btnMem = document.getElementById('mode-memorize');
+      const btnGo  = document.getElementById('mode-go');
+      const imgMem = document.getElementById('mode-memorize-img');
+      const imgGo  = document.getElementById('mode-go-img');
+
+      function applyMode(){
+        if (imgMem) imgMem.src = memorizeMode ? 'image/IconSaveL.jpg' : 'image/IconSaveG.jpg';
+        if (imgGo)  imgGo.src  = memorizeMode ? 'image/IconGotoMapG.jpg' : 'image/IconGotoMapL.jpg';
+        // Add a red tint when Go mode is active
+        if (imgGo) imgGo.classList.toggle('go-active-red', !memorizeMode);
+      }
+      function setMode(mem){ memorizeMode = !!mem; applyMode(); }
+      btnMem && btnMem.addEventListener('click', function(e){ e.preventDefault(); setMode(true); });
+      btnGo  && btnGo.addEventListener('click',  function(e){ e.preventDefault(); setMode(false); });
+      applyMode();
+
+      // expose to other modules
+      window.__cesiumMode = {
+        isMemorize(){ return memorizeMode; },
+        setMemorize(){ setMode(true); },
+        setGo(){ setMode(false); }
+      };
+    })();
+  </script>
 </body>
 </html>

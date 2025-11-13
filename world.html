@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Touch-first Cesium App Scaffold</title>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+  <style>
+    html, body, #cesiumContainer { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    :root {
+      --panel-bg: rgba(255,255,255,0.92);
+      --panel-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      --touch-size: 32px; /* standard button/tool size */
+      --gap: 8px;
+      --accent: #0066ff;
+      --text: #222;
+    }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: var(--text); }
+
+    /* Top Bar */
+  .topbar { position: absolute; top: 8px; right: 8px; z-index: 1000; display: flex; align-items: center; gap: 8px; background: var(--panel-bg); box-shadow: var(--panel-shadow); padding: 6px; border-radius: 0; }
+  .btn { min-width: 32px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; border: none; background: #fff; border-radius: 0; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+    .btn:active { transform: translateY(1px); }
+    .btn img { width: 24px; height: 24px; }
+    .btn.small { min-width: 32px; min-height: 32px; }
+    .btn.toggle.active { outline: 3px solid var(--accent); background: #eef4ff; }
+    .sep { width: 1px; height: var(--touch-size); background: #ddd; margin: 0 4px; }
+
+    /* Panels */
+  .panel { position: absolute; background: var(--panel-bg); box-shadow: var(--panel-shadow); border-radius: 0; padding: 8px; z-index: 900; }
+  /* Remove rounded edges from all buttons */
+  button, .btn, .tool { border-radius: 0 !important; }
+    .panel h3 { margin: 4px 8px 8px; font-size: 14px; font-weight: 700; }
+    .panel .row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .panel .grid { display: grid; grid-template-columns: repeat(2, var(--touch-size)); gap: 8px; }
+  .panel .tool { width: var(--touch-size); height: var(--touch-size); display: grid; place-items: center; border-radius: 0; background: #fff; border: none; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+    .tool img { width: 22px; height: 22px; }
+    .tool.active { outline: 3px solid var(--accent); background: #eef4ff; }
+  .swatch { width: 32px; height: 32px; border-radius: 0; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.2); cursor: pointer; }
+    .swatch.active { outline: 3px solid var(--accent); }
+
+  /* Panel 1: Tools (left) */
+  #panel-tools { left: 8px; top: 80px; width: 72px; }
+    #panel-tools .group { margin-bottom: 10px; }
+    #panel-tools .group h4 { margin: 6px 8px; font-size: 13px; font-weight: 700; opacity: 0.8; }
+
+  /* Right stack: Panel 2 (Presets) + Panel 3 (Layers) */
+  #panel-presets { right: 8px; top: 80px; width: 240px; }
+  #panel-layers { right: 8px; top: 300px; width: 240px; }
+
+    /* Panel 4: Global control */
+    #panel-global { left: 8px; top: 8px; display: flex; gap: 8px; padding: 6px; }
+
+    /* Timeline */
+    .timeline { position: absolute; left: 8px; right: 8px; bottom: 8px; background: var(--panel-bg); box-shadow: var(--panel-shadow); border-radius: 0; height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 12px; z-index: 800; }
+
+    /* Legend pill */
+  .legend { position: absolute; left: 8px; bottom: 76px; background: var(--panel-bg); box-shadow: var(--panel-shadow); border-radius: 0; padding: 8px 10px; z-index: 850; min-width: 200px; }
+    .legend h4 { margin: 0 0 4px; font-size: 13px; }
+    .legend ul { margin: 0; padding-left: 16px; font-size: 12px; }
+
+    /* Search & geolocate tray (top-left) */
+    /* Move search tray to the right, below the top bar so it doesn't cover left-side panel toggles */
+  .tray { position: absolute; top: 72px; right: 8px; left: auto; background: var(--panel-bg); box-shadow: var(--panel-shadow); border-radius: 0; padding: 6px; z-index: 950; display: flex; gap: 6px; align-items: center; }
+  .tray input { height: 32px; font-size: 14px; border-radius: 0; border: 1px solid #ddd; padding: 0 8px; width: 200px; }
+    .tray .btn { min-width: 32px; min-height: 32px; }
+
+    /* Responsive: portrait tweaks */
+    @media (orientation: portrait) {
+  #panel-tools { width: 72px; }
+  #panel-presets, #panel-layers { right: 8px; width: 220px; }
+  .tray input { width: 180px; }
+    }
+
+    /* Hide scrollbar visuals for preset list (still scrollable) */
+    #presetList { scrollbar-width: none; -ms-overflow-style: none; }
+    #presetList::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+
+  <!-- Top Bar: Compass, Zoom+/-, Reset -->
+  <div class="topbar" id="topbar">
+    <button class="btn small" id="btn-compass" title="Compass: tap North-up; double-tap reset tilt">◯ N</button>
+    <div class="sep"></div>
+    <button class="btn small" id="btn-zoom-in" title="Zoom in">＋</button>
+    <button class="btn small" id="btn-zoom-out" title="Zoom out">−</button>
+    <div class="sep"></div>
+    <button class="btn small" id="btn-reset" title="Reset view">Reset</button>
+  </div>
+
+  <!-- Search & Geolocate tray -->
+  <div class="tray" id="tray" style="display:none;">
+    <input type="text" id="searchText" placeholder="Search place (Nominatim)" />
+    <button class="btn small" id="btn-search" title="Search">🔍</button>
+    <button class="btn small" id="btn-geo" title="My location">📍</button>
+  </div>
+
+  <!-- Panel 4: Global Control -->
+  <div class="panel" id="panel-global">
+    <button class="btn small toggle" id="toggle-tools" title="Show/Hide Tools">Tools</button>
+    <button class="btn small toggle" id="toggle-presets" title="Show/Hide Presets">Nav</button>
+    <button class="btn small toggle" id="toggle-search" title="Show/Hide Search">Search</button>
+    <button class="btn small toggle" id="toggle-timeline" title="Show/Hide Timeline">Timeline</button>
+    <button class="btn small toggle" id="toggle-layers" title="Show/Hide Layers">Layers</button>
+    <button class="btn small toggle" id="toggle-compass" title="Show/Hide Compass">Compass</button>
+  </div>
+
+  <!-- Panel 1: Tools -->
+  <div class="panel" id="panel-tools">
+    <h3>Tools</h3>
+    <div class="group">
+      <h4>Draw</h4>
+      <div class="row">
+        <button class="tool" data-tool="draw-line" title="Line"><img src="image/IconDrawingG.jpg" alt="Line"/></button>
+        <button class="tool" data-tool="draw-area" title="Area"><img src="image/IconSelectRectangleG.jpg" alt="Area"/></button>
+        <button class="tool" id="btn-undo" title="Undo"><img src="image/IconUndoG.jpg" alt="Undo"/></button>
+        <button class="tool" id="btn-erase" title="Erase"><img src="image/IconClearG.jpg" alt="Erase"/></button>
+      </div>
+      <div class="row" style="margin-top:6px; align-items:center;">
+  <div class="swatch" data-color="#FF0000" style="background:#FF0000"></div>
+  <div class="swatch" data-color="#0066FF" style="background:#0066FF"></div>
+  <div class="swatch" data-color="#00CC66" style="background:#00CC66"></div>
+        <label style="display:none; align-items:center; gap:6px; margin-left:8px; font-size:12px;">Fill
+          <input type="color" id="areaFill" value="#0066FF" />
+          <input type="range" id="areaOpacity" min="0" max="100" value="35" />
+        </label>
+      </div>
+    </div>
+
+    <div class="group">
+      <h4>Vehicles & Units</h4>
+      <div class="grid">
+        <button class="tool" title="Jetfighter"><img src="image/IconJetFighterG.jpg"/></button>
+        <button class="tool" title="Helicopter"><img src="image/IconHelicopterG.jpg"/></button>
+        <button class="tool" title="UAV"><img src="image/IconUAVG.jpg"/></button>
+        <button class="tool" title="Passenger Plane">🛫</button>
+        <button class="tool" title="Tank"><img src="image/IconTankG.jpg"/></button>
+        <button class="tool" title="Military Car">🚙</button>
+        <button class="tool" title="Truck">🚚</button>
+        <button class="tool" title="Missile Launcher">🚀</button>
+        <button class="tool" title="Infantry">🪖</button>
+        <button class="tool" title="Paratroopers">🪂</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h4>Static Objects</h4>
+      <div class="grid">
+        <button class="tool" title="House">🏠</button>
+        <button class="tool" title="Military Base">🛡</button>
+        <button class="tool" title="Power Station">⚡</button>
+        <button class="tool" title="Flashpoint"><img src="image/IconFlashpointG.jpg"/></button>
+        <button class="tool" title="Oil Rig">🛢</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h4>Utilities</h4>
+      <div class="grid">
+        <button class="tool" id="btn-label" title="Add Label">🏷</button>
+        <button class="tool" id="btn-measure" title="Measure"><img src="image/IconRulerG.jpg"/></button>
+        <button class="tool" id="btn-snapshot" title="Snapshot">📸</button>
+        <button class="tool" id="btn-search-tool" title="Search">🔍</button>
+        <button class="tool" id="btn-timeline" title="Timeline">🕒</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 2: Presets & Modes -->
+  <div class="panel" id="panel-presets">
+    <h3>Presets & Modes</h3>
+    <div style="display:flex; align-items:center; gap:8px; margin: 0 8px 8px;">
+      <div id="activePresetBadge" style="width:18px; height:18px; border-radius:50%; background:#888;"></div>
+      <div id="activePresetName" style="font-weight:700; font-size:14px;">None</div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin: 0 8px 8px;">
+      <button class="btn small toggle" id="mode-record" title="Record" aria-label="Record"><img src="image/IconRecord.png" alt="Record" style="width:24px;height:24px;"/></button>
+      <button class="btn small toggle" id="mode-play" title="Play" aria-label="Play"><img src="image/IconPlay.png" alt="Play" style="width:24px;height:24px;"/></button>
+  <button class="btn small" id="btn-add-preset" title="Add Preset" aria-label="Add Preset"><img src="image/IconPlus.png" alt="Add" style="width:24px;height:24px;"/></button>
+    </div>
+    <div id="presetList" style="max-height:220px; overflow:auto; padding: 0 6px 6px;"></div>
+  </div>
+
+  <!-- Panel 3: Layers (incl. Contours) -->
+  <div class="panel" id="panel-layers" style="display:none;">
+    <h3>Layers</h3>
+    <div style="margin: 0 8px 8px;">
+      <div style="font-size:13px; margin-bottom:4px;">Base map</div>
+      <label style="margin-right:8px;"><input type="radio" name="baseMap" id="bm-sat" value="satellite" checked> Satellite</label>
+      <label><input type="radio" name="baseMap" id="bm-street" value="street"> Street</label>
+    </div>
+    <div class="row" style="margin: 0 8px 8px;">
+      <label><input type="checkbox" id="layer-weather"> Weather</label>
+      <label><input type="checkbox" id="layer-terrain"> Terrain</label>
+      <label><input type="checkbox" id="layer-custom"> Custom</label>
+    </div>
+    <div style="margin: 0 8px 8px; display:flex; align-items:center; gap:8px;">
+      <label><input type="checkbox" id="layer-contours"> Contours</label>
+      <button class="btn small" id="btn-contours-settings" title="Contours settings">⚙</button>
+    </div>
+    <div id="contoursSettings" style="display:none; margin: 0 8px 8px; padding: 8px; background:#fff; border-radius:8px;">
+      <div style="display:grid; grid-template-columns: 120px 1fr; gap:6px; align-items:center; font-size:13px;">
+        <label>Interval</label>
+        <select id="contourInterval">
+          <option value="5">5 m</option>
+          <option value="10" selected>10 m</option>
+          <option value="20">20 m</option>
+          <option value="50">50 m</option>
+        </select>
+        <label>Units</label>
+        <select id="contourUnits"><option value="m" selected>meters</option><option value="ft">feet</option></select>
+        <label>Labels</label>
+        <select id="contourLabels"><option value="on" selected>On</option><option value="off">Off</option></select>
+        <label>Style</label>
+        <input type="range" id="contourThickness" min="1" max="6" value="2" />
+        <label>Opacity</label>
+        <input type="range" id="contourOpacity" min="10" max="100" value="70" />
+        <label>Color</label>
+        <input type="color" id="contourColor" value="#333333" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline (optional) -->
+  <div class="timeline" id="timeline" aria-hidden="true">
+    <div style="font-weight:700;">Timeline</div>
+    <button class="btn small" id="tl-play">▶</button>
+    <button class="btn small" id="tl-stop">◼</button>
+    <input type="range" id="tl-scrub" min="0" max="100" value="0" style="flex:1;" />
+  </div>
+
+  <!-- Legend pill (toggle from Layers) -->
+  <div class="legend" id="legend" style="display:none;">
+    <h4>Legend</h4>
+    <ul>
+      <li>Line (3 px)</li>
+      <li>Area (3 px + 35% fill)</li>
+      <li>Label (city)</li>
+      <li>Static Object (🏠)</li>
+      <li>Vehicle Path + WPs</li>
+      <li>Contours (10 m)</li>
+    </ul>
+  </div>
+
+  <script>
+    // Basic app state and persistence
+    const LS_PRESETS_KEY = 'touchCesium.presets.v1';
+    const LS_FEATURES_KEY = 'touchCesium.features.v1';
+    let presets = []; // {id, name, cameraView, contoursState}
+    let features = []; // {id, type, geometry, style, linkedPresetIds:[], isGlobal}
+    let activePresetId = null;
+
+    function saveAll(){ localStorage.setItem(LS_PRESETS_KEY, JSON.stringify(presets)); localStorage.setItem(LS_FEATURES_KEY, JSON.stringify(features)); }
+    function loadAll(){
+      try { presets = JSON.parse(localStorage.getItem(LS_PRESETS_KEY) || '[]'); } catch { presets = []; }
+      try { features = JSON.parse(localStorage.getItem(LS_FEATURES_KEY) || '[]'); } catch { features = []; }
+    }
+    function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+
+    // Cesium viewer
+    Cesium.Ion.defaultAccessToken = localStorage.getItem('CESIUM_ION_TOKEN') || '';
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      // Start with a safe default imagery (OSM) to avoid early provider crashes; we'll switch after init if needed.
+      imageryProvider: new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/' }),
+      baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false, navigationHelpButton: false, animation: false, timeline: false
+    });
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+    viewer.scene.globe.show = true;
+    viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#2b3e50');
+      // Ensure we start at a global view
+      viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(0, 20, 25000000) });
+      const hasIon = !!Cesium.Ion.defaultAccessToken;
+      // Helper: get a terrain provider (Ion if available; else legacy free STK World Terrain)
+        function makeTerrainProvider(){
+          if (hasIon) {
+            return Cesium.createWorldTerrain({ requestVertexNormals: true, requestWaterMask: true });
+          }
+          // Guaranteed-visible fallback: ellipsoid terrain (no token required)
+          return new Cesium.EllipsoidTerrainProvider();
+        }
+      // Enable terrain by default using the best available provider so you can see relief without a token
+      try { viewer.terrainProvider = makeTerrainProvider(); } catch {}
+
+    // Base map selector + fallback
+  // Default to Satellite unless a previous choice exists in localStorage
+  let currentBaseMap = localStorage.getItem('touchCesium.baseMap') || 'satellite';
+      const rbSat = document.getElementById('bm-sat');
+      const rbStreet = document.getElementById('bm-street');
+      function attachImageryFallback(provider){
+        // Only fall back if repeated tile errors happen within a short window.
+        try {
+          if (provider && provider.errorEvent && provider.errorEvent.addEventListener) {
+            let errCount = 0; const start = Date.now();
+            provider.errorEvent.addEventListener(function(){
+              if (currentBaseMap !== 'satellite') return;
+              errCount++;
+              const elapsed = Date.now() - start;
+              // If 5+ errors within 30s, consider satellite unstable and fall back
+              if (errCount >= 5 && elapsed <= 30000) {
+                console.warn('Satellite imagery unstable (repeated errors); switching to OpenStreetMap');
+                setBaseImagery('street');
+              }
+            });
+          }
+        } catch (_) { /* ignore */ }
+      }
+      function setBaseImagery(kind){
+        const layers = viewer.imageryLayers;
+        while (layers.length > 0) layers.remove(layers.get(0), true);
+        if (kind === 'street'){
+          try {
+            layers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/' }));
+            currentBaseMap = 'street';
+          } catch (e) {
+            console.warn('Failed to set OSM imagery, keeping existing layer.', e);
+          }
+        } else {
+          try {
+            // Use UrlTemplateImageryProvider for Esri World Imagery to avoid ArcGisMapServerImageryProvider edge crashes
+            const provider = new Cesium.UrlTemplateImageryProvider({
+              url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+              credit: 'Tiles  a9 Esri',
+              tilingScheme: new Cesium.WebMercatorTilingScheme(),
+              maximumLevel: 19,
+              tileWidth: 256,
+              tileHeight: 256
+            });
+            layers.addImageryProvider(provider);
+            currentBaseMap = 'satellite';
+            attachImageryFallback(provider);
+          } catch (e) {
+            console.warn('Esri URL template imagery init failed; falling back to OSM.', e);
+            try {
+              layers.addImageryProvider(new Cesium.OpenStreetMapImageryProvider({ url: 'https://a.tile.openstreetmap.org/' }));
+              currentBaseMap = 'street';
+            } catch(_){ /* ignore */ }
+          }
+        }
+        if (rbSat && rbStreet){ rbSat.checked = currentBaseMap==='satellite'; rbStreet.checked = currentBaseMap==='street'; }
+        try { localStorage.setItem('touchCesium.baseMap', currentBaseMap); } catch(_){ }
+      }
+      // Initialize base map
+      setBaseImagery(currentBaseMap);
+
+    // Topbar controls: Compass, Zoom, Reset
+    const btnCompass = document.getElementById('btn-compass');
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    const btnReset = document.getElementById('btn-reset');
+    let lastTapTime = 0;
+    btnCompass.addEventListener('click', (e)=>{
+      const now = Date.now();
+      const dbl = (now - lastTapTime) < 350; lastTapTime = now;
+      const current = viewer.camera.positionCartographic;
+      const dest = Cesium.Cartesian3.fromRadians(current.longitude, current.latitude, Math.max(200, current.height));
+      const orientation = { heading: 0, pitch: dbl ? Cesium.Math.toRadians(-30) : viewer.camera.pitch, roll: 0 };
+      viewer.camera.setView({ destination: dest, orientation });
+    });
+    btnZoomIn.addEventListener('click', ()=>{
+      const amt = Math.max(50, viewer.camera.positionCartographic.height * 0.2);
+      viewer.camera.zoomIn(amt);
+    });
+    btnZoomOut.addEventListener('click', ()=>{
+      const amt = Math.max(50, viewer.camera.positionCartographic.height * 0.2);
+      viewer.camera.zoomOut(amt);
+    });
+    btnReset.addEventListener('click', ()=>{
+      viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(106.8272, -6.1751, 1500000) });
+    });
+
+    // Search & Geolocate
+    document.getElementById('btn-search').addEventListener('click', doSearch);
+    document.getElementById('searchText').addEventListener('keydown', (e)=>{ if (e.key==='Enter') doSearch(); });
+    document.getElementById('btn-geo').addEventListener('click', ()=>{
+      if (!('geolocation' in navigator)) { alert('Geolocation unsupported'); return; }
+      navigator.geolocation.getCurrentPosition((pos)=>{
+        const { latitude, longitude, accuracy } = pos.coords;
+        const h = Math.min(Math.max(accuracy*8, 1000), 30000);
+        viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(longitude, latitude, h) });
+      }, (err)=> alert('Geolocation failed: '+err.message), { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+    });
+    async function doSearch(){
+      const q = document.getElementById('searchText').value.trim(); if (!q) return;
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`, { headers: { 'Accept':'application/json' } });
+        const data = await res.json();
+        if (!Array.isArray(data) || !data.length) { alert('No results'); return; }
+        const first = data[0]; const lat = parseFloat(first.lat), lon = parseFloat(first.lon);
+        if (first.boundingbox && first.boundingbox.length===4){
+          const [south,north,west,east] = first.boundingbox.map(parseFloat);
+          viewer.camera.flyTo({ destination: Cesium.Rectangle.fromDegrees(west, south, east, north) });
+        } else {
+          viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(lon, lat, 12000) });
+        }
+      } catch (e) { console.error(e); alert('Search failed'); }
+    }
+
+    // Global control toggles
+    const elTools = document.getElementById('panel-tools');
+    const elPresets = document.getElementById('panel-presets');
+  const elLayers = document.getElementById('panel-layers');
+  const elTimeline = document.getElementById('timeline');
+  const elTray = document.getElementById('tray');
+    const tTools = document.getElementById('toggle-tools');
+    const tPresets = document.getElementById('toggle-presets');
+  const tSearch = document.getElementById('toggle-search');
+  const tTimeline = document.getElementById('toggle-timeline');
+    const tLayers = document.getElementById('toggle-layers');
+    const tCompass = document.getElementById('toggle-compass');
+    function toggle(el, btn){ const shown = el.style.display !== 'none'; el.style.display = shown ? 'none':'block'; btn.classList.toggle('active', !shown); }
+    tTools.addEventListener('click', ()=> toggle(elTools, tTools));
+    tPresets.addEventListener('click', ()=> toggle(elPresets, tPresets));
+  // The search tray uses flex layout, so use 'flex' when showing
+  tSearch.addEventListener('click', ()=>{ const shown = elTray.style.display !== 'none'; elTray.style.display = shown ? 'none' : 'flex'; tSearch.classList.toggle('active', !shown); });
+  // Timeline bar uses flex layout
+  tTimeline.addEventListener('click', ()=>{ const shown = elTimeline.style.display !== 'none'; elTimeline.style.display = shown ? 'none' : 'flex'; tTimeline.classList.toggle('active', !shown); });
+  // Also wire the tool button inside Tools panel, if present
+  const toolTimeline = document.getElementById('btn-timeline');
+  if (toolTimeline) toolTimeline.addEventListener('click', ()=>{ const shown = elTimeline.style.display !== 'none'; elTimeline.style.display = shown ? 'none' : 'flex'; });
+    tLayers.addEventListener('click', ()=> toggle(elLayers, tLayers));
+    tCompass.addEventListener('click', ()=> { const tb = document.getElementById('topbar'); const shown = tb.style.display !== 'none'; tb.style.display = shown?'none':'flex'; tCompass.classList.toggle('active', !shown); });
+
+    // Layers & Contours UI state (per preset)
+    const chkWeather = document.getElementById('layer-weather');
+    const chkTerrain = document.getElementById('layer-terrain');
+    const chkCustom = document.getElementById('layer-custom');
+    const chkContours = document.getElementById('layer-contours');
+    const btnContoursSettings = document.getElementById('btn-contours-settings');
+    const boxContours = document.getElementById('contoursSettings');
+    const legend = document.getElementById('legend');
+    btnContoursSettings.addEventListener('click', ()=>{ boxContours.style.display = (boxContours.style.display==='none'?'block':'none'); });
+      // Base map radio handlers
+      if (rbSat) rbSat.addEventListener('change', ()=>{ if (rbSat.checked) setBaseImagery('satellite'); });
+      if (rbStreet) rbStreet.addEventListener('change', ()=>{ if (rbStreet.checked) setBaseImagery('street'); });
+      chkTerrain.addEventListener('change', ()=>{
+        if (chkTerrain.checked) {
+          viewer.terrainProvider = makeTerrainProvider();
+        } else {
+          viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+        }
+        persistPresetLayerState();
+      });
+    chkContours.addEventListener('change', ()=>{ legend.style.display = chkContours.checked ? 'block':'none'; persistPresetLayerState(); });
+    chkWeather.addEventListener('change', persistPresetLayerState);
+    chkCustom.addEventListener('change', persistPresetLayerState);
+    ['contourInterval','contourUnits','contourLabels','contourThickness','contourOpacity','contourColor'].forEach(id=>{
+      document.getElementById(id).addEventListener('input', persistPresetLayerState);
+    });
+    function persistPresetLayerState(){
+      if (!activePresetId) return;
+      const p = presets.find(x=>x.id===activePresetId); if (!p) return;
+      p.contoursState = {
+        weather: chkWeather.checked,
+        terrain: chkTerrain.checked,
+        custom: chkCustom.checked,
+        contours: chkContours.checked,
+        settings: {
+          interval: parseFloat(document.getElementById('contourInterval').value),
+          units: document.getElementById('contourUnits').value,
+          labels: document.getElementById('contourLabels').value,
+          thickness: parseFloat(document.getElementById('contourThickness').value),
+          opacity: parseFloat(document.getElementById('contourOpacity').value)/100,
+          color: document.getElementById('contourColor').value
+        }
+      };
+      saveAll();
+    }
+    function restorePresetLayerState(){
+      const p = presets.find(x=>x.id===activePresetId); if (!p || !p.contoursState) return;
+      const s = p.contoursState;
+      chkWeather.checked = !!s.weather;
+      chkTerrain.checked = !!s.terrain;
+      chkCustom.checked = !!s.custom;
+      chkContours.checked = !!s.contours;
+      legend.style.display = chkContours.checked ? 'block':'none';
+      if (s.settings){
+        document.getElementById('contourInterval').value = s.settings.interval ?? 10;
+        document.getElementById('contourUnits').value = s.settings.units ?? 'm';
+        document.getElementById('contourLabels').value = s.settings.labels ?? 'on';
+        document.getElementById('contourThickness').value = Math.round((s.settings.thickness??2));
+        document.getElementById('contourOpacity').value = Math.round(((s.settings.opacity??0.7)*100));
+        document.getElementById('contourColor').value = s.settings.color ?? '#333333';
+      }
+    }
+
+    // Presets list
+    const activePresetName = document.getElementById('activePresetName');
+    const activePresetBadge = document.getElementById('activePresetBadge');
+  const presetList = document.getElementById('presetList');
+  const btnAddPreset = document.getElementById('btn-add-preset');
+    const modeRecord = document.getElementById('mode-record');
+    const modePlay = document.getElementById('mode-play');
+    let recordMode = true;
+    function setMode(rec){ recordMode = !!rec; modeRecord.classList.toggle('active', rec); modePlay.classList.toggle('active', !rec); }
+    modeRecord.addEventListener('click', ()=> setMode(true));
+    modePlay.addEventListener('click', ()=> setMode(false));
+
+    btnAddPreset.addEventListener('click', ()=>{
+      const name = prompt('Preset name', 'Preset '+(presets.length+1)); if (!name) return;
+      const view = captureCameraView();
+      const p = { id: uid('preset'), name, cameraView: view, contoursState: null };
+      presets.push(p); activePresetId = p.id; saveAll(); renderPresets(); applyActivePreset();
+    });
+  // Shuffle and extra filter controls removed per request
+
+    function renderPresets(){
+      presetList.innerHTML = '';
+      presets.forEach(p=>{
+        const row = document.createElement('div');
+        row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.margin='4px 0';
+        row.style.padding='2px 0';
+        row.dataset.pid = p.id;
+        // Drag handle icon
+        const handle = document.createElement('span');
+        handle.textContent = '≡';
+        handle.title = 'Drag to reorder';
+        handle.style.fontSize = '18px';
+        handle.style.lineHeight = '1';
+        handle.style.cursor = 'grab';
+        handle.style.padding = '0 4px';
+        handle.setAttribute('draggable','true');
+        handle.addEventListener('dragstart', (e)=>{ try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', p.id); }catch(_){} row.style.opacity='0.6'; });
+        handle.addEventListener('dragend', ()=>{ row.style.opacity=''; });
+  const btnGo = document.createElement('button'); btnGo.className='btn small'; btnGo.title='Fly to preset'; btnGo.setAttribute('aria-label','Go');
+  btnGo.innerHTML = '<img src="image/IconGo.png" alt="Go" style="width:18px;height:18px;display:block;" />';
+  btnGo.addEventListener('click', ()=>{ activePresetId = p.id; applyActivePreset(); flyToView(p.cameraView); });
+        const btnRename = document.createElement('button'); btnRename.className='btn small'; btnRename.title='Rename preset'; btnRename.setAttribute('aria-label','Rename');
+        btnRename.innerHTML = '<img src="image/IconRename.png" alt="Rename" style="width:18px;height:18px;display:block;" />';
+        btnRename.addEventListener('click', ()=>{
+          const newName = prompt('Rename preset', p.name || '');
+          if (!newName) return;
+          p.name = newName.trim();
+          saveAll(); renderPresets(); applyActivePreset();
+        });
+        const btnDelete = document.createElement('button'); btnDelete.className='btn small'; btnDelete.title='Delete preset'; btnDelete.setAttribute('aria-label','Delete');
+        btnDelete.innerHTML = '<img src="image/IconDelete.png" alt="Delete" style="width:18px;height:18px;display:block;" />';
+        btnDelete.addEventListener('click', ()=>{
+          if (!confirm(`Delete preset "${p.name}"?`)) return;
+          const idx = presets.findIndex(x=> x.id===p.id);
+          if (idx >= 0){
+            const deletingActive = (activePresetId === p.id);
+            presets.splice(idx, 1);
+            if (deletingActive){
+              const fallback = presets[idx] || presets[idx-1] || null;
+              activePresetId = fallback ? fallback.id : null;
+            }
+            saveAll(); renderPresets(); applyActivePreset();
+          }
+        });
+        const name = document.createElement('div'); name.textContent = p.name; name.style.flex='1';
+  row.appendChild(handle); row.appendChild(btnGo); row.appendChild(btnRename); row.appendChild(btnDelete); row.appendChild(name);
+        presetList.appendChild(row);
+      });
+    }
+    // Drag-and-drop reordering for presets
+    function reorderPresetsById(sourceId, targetId, position /* 'before'|'after' */){
+      if (!sourceId || !targetId || sourceId===targetId) return;
+      const fromIndex = presets.findIndex(x=> x.id===sourceId);
+      let toIndex = presets.findIndex(x=> x.id===targetId);
+      if (fromIndex<0 || toIndex<0) return;
+      const [moved] = presets.splice(fromIndex, 1);
+      // Adjust target index if source was before target
+      if (fromIndex < toIndex) toIndex -= 1;
+      if (position === 'after') toIndex += 1;
+      presets.splice(Math.max(0, Math.min(toIndex, presets.length)), 0, moved);
+      saveAll();
+      renderPresets();
+    }
+    presetList.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+    presetList.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      const srcId = (e.dataTransfer && e.dataTransfer.getData('text/plain')) || null;
+      const targetRow = e.target && e.target.closest && e.target.closest('[data-pid]');
+      if (!srcId || !targetRow) return;
+      const rect = targetRow.getBoundingClientRect();
+      const position = (e.clientY - rect.top) < rect.height/2 ? 'before' : 'after';
+      reorderPresetsById(srcId, targetRow.dataset.pid, position);
+    });
+    function applyActivePreset(){
+      const p = presets.find(x=>x.id===activePresetId);
+      activePresetName.textContent = p ? p.name : 'None';
+      activePresetBadge.style.background = p ? '#4caf50' : '#888';
+      if (p) { restorePresetLayerState(); filterFeatures('current'); }
+      saveAll();
+    }
+
+    function captureCameraView(){
+      const pos = viewer.camera.positionCartographic;
+      return { lon: pos.longitude, lat: pos.latitude, height: pos.height, heading: viewer.camera.heading, pitch: viewer.camera.pitch, roll: viewer.camera.roll };
+    }
+    function flyToView(v){
+      if (!v) return;
+      const height = Math.max(50, v.height || 1000);
+      const destination = Cesium.Cartesian3.fromRadians(v.lon, v.lat, height);
+      const orientation = {
+        heading: v.heading ?? 0,
+        pitch: v.pitch ?? Cesium.Math.toRadians(-30),
+        roll: v.roll ?? 0
+      };
+      try {
+        viewer.camera.flyTo({
+          destination,
+          orientation,
+          duration: 1.8,
+          easingFunction: Cesium.EasingFunction.QUADRATIC_OUT
+        });
+      } catch(_) {
+        // Fallback to immediate setView if flyTo cannot run (rare)
+        viewer.camera.setView({ destination, orientation });
+      }
+    }
+
+    // Drawing (Line / Area) minimal scaffold
+    let drawMode = null; // 'line'|'area'
+    let drawPositions = [];
+    let tempEntity = null;
+    let strokeColor = Cesium.Color.fromCssColorString('#FF0000');
+    // Simple unit placement mode (e.g., Jetfighter)
+    let placeMode = null; // { kind, spec, btn }
+    const UNIT_SPECS = {
+      jetfighter: { icon: 'image/IconJetFighterG.jpg', w: 32, h: 32, name: 'Jetfighter' },
+      helicopter: { icon: 'image/IconHelicopterG.jpg', w: 32, h: 32, name: 'Helicopter' },
+      uav:        { icon: 'image/IconUAVG.jpg',        w: 32, h: 32, name: 'UAV' },
+      tank:       { icon: 'image/IconTankG.jpg',       w: 32, h: 32, name: 'Tank' }
+    };
+    function setToolActive(which){
+      document.querySelectorAll('#panel-tools .tool').forEach(b=> b.classList.remove('active'));
+      const el = document.querySelector(`.tool[data-tool="${which}"]`); if (el) el.classList.add('active');
+    }
+    document.querySelector('[data-tool="draw-line"]').addEventListener('click', ()=>{ drawMode='line'; setToolActive('draw-line'); startDrawing(); });
+    document.querySelector('[data-tool="draw-area"]').addEventListener('click', ()=>{ drawMode='area'; setToolActive('draw-area'); startDrawing(); });
+    document.getElementById('btn-undo').addEventListener('click', ()=>{ if (drawPositions.length>0){ drawPositions.pop(); updateTempEntity(); } });
+    document.getElementById('btn-erase').addEventListener('click', ()=>{ if (tempEntity){ viewer.entities.remove(tempEntity); tempEntity=null; } drawPositions=[]; });
+
+    // Vehicle/unit tool wiring: click a tool to enter placement mode (click on map to place icons)
+    function clearPlacement(){ if (placeMode && placeMode.btn) placeMode.btn.classList.remove('active'); placeMode = null; }
+    function startPlacement(kind, btn){
+      // Turn off drawing
+      drawMode = null; if (tempEntity){ try{ viewer.entities.remove(tempEntity);}catch(_){} tempEntity=null; }
+      // Toggle behavior: clicking the active tool turns it off
+      if (placeMode && placeMode.kind === kind){ clearPlacement(); return; }
+      // Clear previous
+      clearPlacement();
+      const spec = UNIT_SPECS[kind]; if (!spec) return;
+      placeMode = { kind, spec, btn };
+      if (btn) btn.classList.add('active');
+    }
+    const btnJet = document.querySelector('#panel-tools .tool[title="Jetfighter"]');
+    const btnHeli = document.querySelector('#panel-tools .tool[title="Helicopter"]');
+    const btnUav = document.querySelector('#panel-tools .tool[title="UAV"]');
+    const btnTank = document.querySelector('#panel-tools .tool[title="Tank"]');
+    btnJet && btnJet.addEventListener('click', ()=> startPlacement('jetfighter', btnJet));
+    btnHeli && btnHeli.addEventListener('click', ()=> startPlacement('helicopter', btnHeli));
+    btnUav && btnUav.addEventListener('click', ()=> startPlacement('uav', btnUav));
+    btnTank && btnTank.addEventListener('click', ()=> startPlacement('tank', btnTank));
+
+    // Color palette
+    document.querySelectorAll('.swatch').forEach(sw=>{
+      sw.addEventListener('click', ()=>{
+        document.querySelectorAll('.swatch').forEach(s=> s.classList.remove('active'));
+        sw.classList.add('active');
+        strokeColor = Cesium.Color.fromCssColorString(sw.dataset.color);
+        if (tempEntity && tempEntity.polyline) tempEntity.polyline.material = strokeColor;
+        if (tempEntity && tempEntity.polygon){
+          tempEntity.polygon.material = Cesium.Color.fromCssColorString(document.getElementById('areaFill').value).withAlpha(parseInt(document.getElementById('areaOpacity').value)/100);
+          tempEntity.polygon.outlineColor = strokeColor;
+        }
+      });
+    });
+    document.getElementById('areaFill').addEventListener('input', ()=>{ if (tempEntity && tempEntity.polygon){ tempEntity.polygon.material = Cesium.Color.fromCssColorString(areaFill.value).withAlpha(parseInt(areaOpacity.value)/100); } });
+    document.getElementById('areaOpacity').addEventListener('input', ()=>{ if (tempEntity && tempEntity.polygon){ tempEntity.polygon.material = Cesium.Color.fromCssColorString(areaFill.value).withAlpha(parseInt(areaOpacity.value)/100); } });
+
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    function startDrawing(){
+      drawPositions = [];
+      if (tempEntity){ viewer.entities.remove(tempEntity); tempEntity=null; }
+    }
+    function cartesianFromClick(movement){
+      const ray = viewer.camera.getPickRay(movement.position || movement.endPosition);
+      const c = ray ? viewer.scene.globe.pick(ray, viewer.scene) : null;
+      return c || viewer.camera.pickEllipsoid((movement.position||movement.endPosition), viewer.scene.globe.ellipsoid);
+    }
+    handler.setInputAction((click)=>{
+      const c = cartesianFromClick(click); if (!c) return;
+      if (drawMode){
+        drawPositions.push(c); updateTempEntity();
+        return;
+      }
+      if (placeMode){
+        try {
+          const bSpec = placeMode.spec;
+          viewer.entities.add({
+            position: c,
+            name: bSpec.name || placeMode.kind,
+            billboard: {
+              image: bSpec.icon,
+              width: bSpec.w,
+              height: bSpec.h,
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+              disableDepthTestDistance: Number.POSITIVE_INFINITY
+            }
+          });
+        } catch(_){ /* ignore placement error */ }
+        return;
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    handler.setInputAction(()=>{
+      if (!drawMode) return;
+      finalizeDrawing();
+    }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+    function updateTempEntity(){
+      const width = Math.max(3, Math.round(3 * (window.devicePixelRatio||1)));
+      if (drawMode === 'line'){
+        if (!tempEntity){ tempEntity = viewer.entities.add({ polyline: { positions: new Cesium.CallbackProperty(()=> drawPositions.slice(), false), width, material: strokeColor } }); }
+      } else if (drawMode === 'area'){
+        if (!tempEntity){ tempEntity = viewer.entities.add({ polygon: { hierarchy: new Cesium.CallbackProperty(()=> new Cesium.PolygonHierarchy(drawPositions.slice()), false), material: Cesium.Color.fromCssColorString(document.getElementById('areaFill').value).withAlpha(parseInt(document.getElementById('areaOpacity').value)/100), outline: true, outlineColor: strokeColor, outlineWidth: width } }); }
+      }
+    }
+    function finalizeDrawing(){
+      if (!tempEntity || drawPositions.length < (drawMode==='line'?2:3)){ drawMode=null; return; }
+      // Persist feature and link to active preset (auto-link)
+      const f = { id: uid('feat'), type: drawMode, geometry: drawPositions.map(p=> Cesium.Cartographic.fromCartesian(p)), style: { color: strokeColor.toCssColorString && strokeColor.toCssColorString() }, linkedPresetIds: activePresetId?[activePresetId]:[], isGlobal: false };
+      features.push(f); saveAll();
+      drawMode = null; drawPositions = []; tempEntity = null; // leave entity on viewer
+      filterFeatures('current');
+    }
+
+    function filterFeatures(scope){
+      // For scaffold: simply hide entities not linked to current preset when scope=='current'
+      const showAll = (scope === 'all' || !activePresetId);
+      viewer.entities.values.forEach(ent=>{ ent.show = true; }); // default
+      if (!showAll){
+        // In a richer app we'd track entity-feature mapping; for scaffold we leave drawings visible
+      }
+    }
+    function getSelectedFeature(){ return null; } // placeholder for context selection
+
+    // Snapshot at >=4K (UI hidden)
+    document.getElementById('btn-snapshot').addEventListener('click', async ()=>{
+      const ui = [document.getElementById('topbar'), document.getElementById('panel-global'), document.getElementById('panel-tools'), document.getElementById('panel-presets'), document.getElementById('panel-layers'), document.getElementById('timeline'), document.getElementById('tray'), document.getElementById('legend')];
+      const prev = ui.map(el=> el.style.display);
+      ui.forEach(el=> el.style.display='none');
+      const oldScale = viewer.resolutionScale; viewer.resolutionScale = Math.max(2.0, window.devicePixelRatio||1);
+      viewer.scene.render();
+      try {
+        viewer.canvas.toBlob((blob)=>{ if (!blob) return; const a=document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'snapshot.png'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000); }, 'image/png');
+      } finally {
+        viewer.resolutionScale = oldScale; ui.forEach((el,i)=> el.style.display = prev[i]);
+      }
+    });
+
+    // Boot
+    loadAll();
+    renderPresets();
+    applyActivePreset();
+  </script>
+</body>
+</html>
