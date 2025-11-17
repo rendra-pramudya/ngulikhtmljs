@@ -76,6 +76,9 @@
     /* Hide scrollbar visuals for preset list (still scrollable) */
     #presetList { scrollbar-width: none; -ms-overflow-style: none; }
     #presetList::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    /* Map lock indicator styling */
+    .lock-indicator { position:absolute; top:8px; left:50%; transform:translateX(-50%); background:var(--panel-bg); box-shadow:var(--panel-shadow); padding:6px 12px; border-radius:0; z-index:1100; font-size:12px; }
+    .lock-indicator strong { font-weight:700; }
   </style>
 </head>
 <body>
@@ -89,6 +92,14 @@
     <button class="btn small" id="btn-zoom-out" title="Zoom out">−</button>
     <div class="sep"></div>
     <button class="btn small" id="btn-reset" title="Reset view">Reset</button>
+  </div>
+
+  <!-- Map lock indicator (shown when line drawing locks camera controls) -->
+  <div id="lockIndicator" class="lock-indicator" style="display:none;">
+    <span style="display:inline-flex;align-items:center;gap:6px;">
+      🔒 <strong style="font-size:13px;">Map Locked</strong>
+      <span style="font-size:11px;opacity:0.7;">Finish (double-click) to unlock</span>
+    </span>
   </div>
 
   <!-- Search & Geolocate tray -->
@@ -131,40 +142,50 @@
     </div>
 
     <div class="group">
-      <h4>Vehicles & Units</h4>
       <div class="grid">
-        <button class="tool" title="Jetfighter"><img src="image/IconJetFighterG.jpg"/></button>
-        <button class="tool" title="Helicopter"><img src="image/IconHelicopterG.jpg"/></button>
-        <button class="tool" title="UAV"><img src="image/IconUAVG.jpg"/></button>
-        <button class="tool" title="Passenger Plane">🛫</button>
-        <button class="tool" title="Tank"><img src="image/IconTankG.jpg"/></button>
-        <button class="tool" title="Military Car">🚙</button>
-        <button class="tool" title="Truck">🚚</button>
-        <button class="tool" title="Missile Launcher">🚀</button>
-        <button class="tool" title="Infantry">🪖</button>
-        <button class="tool" title="Paratroopers">🪂</button>
+        <!-- Row 1: Soldier Action / Soldier Standing -->
+        <button class="tool" title="Soldier Action"><img src="image/IconSoldierActionG.jpg" alt="Soldier Action"/></button>
+        <button class="tool" title="Soldier Standing"><img src="image/IconSoldierStandingG.jpg" alt="Soldier Standing"/></button>
+        <!-- Row 2: Jetfighter / UAV -->
+        <button class="tool" title="Jetfighter"><img src="image/IconJetFighterG.jpg" alt="Jetfighter"/></button>
+        <button class="tool" title="UAV"><img src="image/IconUAVG.jpg" alt="UAV"/></button>
+        <!-- Row 3: Car / MLRS -->
+        <button class="tool" title="Car"><img src="image/IconCarG.jpg" alt="Car"/></button>
+        <button class="tool" title="MLRS"><img src="image/IconMLRSG.jpg" alt="MLRS"/></button>
+        <!-- Row 4: Helicopter / Tank -->
+        <button class="tool" title="Helicopter"><img src="image/IconHelicopterG.jpg" alt="Helicopter"/></button>
+        <button class="tool" title="Tank"><img src="image/IconTankG.jpg" alt="Tank"/></button>
+        <!-- Row 5: Battleship / Submarine -->
+        <button class="tool" title="Battleship"><img src="image/IconBattleshipG.jpg" alt="Battleship"/></button>
+        <button class="tool" title="Submarine"><img src="image/IconSubmarineG.jpg" alt="Submarine"/></button>
+        <!-- Row 6: Explosion / Flash Point -->
+        <button class="tool" title="Explosion"><img src="image/IconExplosionG.jpg" alt="Explosion"/></button>
+        <button class="tool" title="Flash Point"><img src="image/IconFlashpointG.jpg" alt="Flash Point"/></button>
+        <!-- Row 7: Ruler (span two columns using duplicate for layout symmetry) -->
+        <button class="tool" id="btn-measure" title="Measure"><img src="image/IconRulerG.jpg" alt="Ruler"/></button>
+        <button class="tool" title="(empty)" style="visibility:hidden;"></button>
       </div>
     </div>
 
     <div class="group">
-      <h4>Static Objects</h4>
       <div class="grid">
-        <button class="tool" title="House">🏠</button>
-        <button class="tool" title="Military Base">🛡</button>
-        <button class="tool" title="Power Station">⚡</button>
-        <button class="tool" title="Flashpoint"><img src="image/IconFlashpointG.jpg"/></button>
-        <button class="tool" title="Oil Rig">🛢</button>
+        <!-- Removed old static objects; kept empty group for spacing if needed -->
+        <button class="tool" style="visibility:hidden;"></button>
+        <button class="tool" style="visibility:hidden;"></button>
+        <button class="tool" style="visibility:hidden;"></button>
+        <button class="tool" style="visibility:hidden;"></button>
+        <button class="tool" style="visibility:hidden;"></button>
       </div>
     </div>
 
     <div class="group">
-      <h4>Utilities</h4>
       <div class="grid">
-        <button class="tool" id="btn-label" title="Add Label">🏷</button>
-        <button class="tool" id="btn-measure" title="Measure"><img src="image/IconRulerG.jpg"/></button>
-        <button class="tool" id="btn-snapshot" title="Snapshot">📸</button>
-        <button class="tool" id="btn-search-tool" title="Search">🔍</button>
-        <button class="tool" id="btn-timeline" title="Timeline">🕒</button>
+        <!-- Removed utilities per new icon arrangement -->
+        <button class="tool" style="visibility:hidden;"></button>
+        <button class="tool" style="visibility:hidden;"></button>
+        <button class="tool" style="visibility:hidden;"></button>
+        <button class="tool" style="visibility:hidden;"></button>
+        <button class="tool" style="visibility:hidden;"></button>
       </div>
     </div>
   </div>
@@ -624,22 +645,115 @@
       jetfighter: { icon: 'image/IconJetFighterG.jpg', w: 32, h: 32, name: 'Jetfighter' },
       helicopter: { icon: 'image/IconHelicopterG.jpg', w: 32, h: 32, name: 'Helicopter' },
       uav:        { icon: 'image/IconUAVG.jpg',        w: 32, h: 32, name: 'UAV' },
-      tank:       { icon: 'image/IconTankG.jpg',       w: 32, h: 32, name: 'Tank' }
+      tank:       { icon: 'image/IconTankG.jpg',       w: 32, h: 32, name: 'Tank' },
+      soldierAction:   { icon: 'image/IconSoldierActionG.jpg',   w: 32, h: 32, name: 'Soldier Action' },
+      soldierStanding: { icon: 'image/IconSoldierStandingG.jpg', w: 32, h: 32, name: 'Soldier Standing' },
+      car:             { icon: 'image/IconCarG.jpg',             w: 32, h: 32, name: 'Car' },
+      mlrs:            { icon: 'image/IconMLRSG.jpg',            w: 32, h: 32, name: 'MLRS' },
+      battleship:      { icon: 'image/IconBattleshipG.jpg',      w: 32, h: 32, name: 'Battleship' },
+      submarine:       { icon: 'image/IconSubmarineG.jpg',       w: 32, h: 32, name: 'Submarine' },
+      explosion:       { icon: 'image/IconExplosionG.jpg',       w: 32, h: 32, name: 'Explosion' },
+      flashpoint:      { icon: 'image/IconFlashpointG.jpg',      w: 32, h: 32, name: 'Flash Point' }
     };
     function setToolActive(which){
       document.querySelectorAll('#panel-tools .tool').forEach(b=> b.classList.remove('active'));
       const el = document.querySelector(`.tool[data-tool="${which}"]`); if (el) el.classList.add('active');
     }
+    // Helper: freeze current in-progress line so it remains visible when switching modes
+    function freezeLineIfEditing(){
+      if ((drawMode === 'line' || drawMode === 'measure') && tempEntity && tempEntity.polyline && drawPositions.length > 0){
+        try {
+          const staticPositions = drawPositions.slice();
+          // Replace dynamic CallbackProperty with static array to stop further mutation
+          tempEntity.polyline.positions = staticPositions;
+          // Mark entity as frozen so later mode switches don't remove it
+          tempEntity._frozen = true;
+          if (drawMode === 'measure' && tempEntity._labelEnt){
+            try {
+              const lbl = tempEntity._labelEnt;
+              lbl.position = lbl.position.getValue ? lbl.position.getValue(Cesium.JulianDate.now()) : lbl.position;
+              lbl.label.text = tempEntity._cachedDistanceText || lbl.label.text;
+            } catch(_){ }
+          }
+        } catch(_) { /* ignore */ }
+      }
+    }
     document.querySelector('[data-tool="draw-line"]').addEventListener('click', ()=>{ drawMode='line'; setToolActive('draw-line'); startDrawing(); });
-    document.querySelector('[data-tool="draw-area"]').addEventListener('click', ()=>{ drawMode='area'; setToolActive('draw-area'); startDrawing(); });
+    document.querySelector('[data-tool="draw-area"]').addEventListener('click', ()=>{
+      // Preserve any existing line before switching to area mode
+      freezeLineIfEditing();
+      drawMode='area'; setToolActive('draw-area'); startDrawing();
+    });
     document.getElementById('btn-undo').addEventListener('click', ()=>{ if (drawPositions.length>0){ drawPositions.pop(); updateTempEntity(); } });
-    document.getElementById('btn-erase').addEventListener('click', ()=>{ if (tempEntity){ viewer.entities.remove(tempEntity); tempEntity=null; } drawPositions=[]; });
+    document.getElementById('btn-erase').addEventListener('click', ()=>{
+      // If actively drawing, remove in-progress entity and clear positions
+      if (tempEntity){
+        try { viewer.entities.remove(tempEntity); } catch(_){ }
+        tempEntity = null; drawPositions = []; return;
+      }
+      // Otherwise remove the most recently created drawing entity (line/area) if any
+      const drawings = viewer.entities.values.filter(e=> e._isDrawing);
+      if (drawings.length > 0){
+        const last = drawings[drawings.length - 1];
+        if (last._featureId){
+          const idx = features.findIndex(f=> f.id === last._featureId);
+          if (idx >= 0){ features.splice(idx,1); saveAll(); }
+        }
+        if (last._drawType === 'measure' && last._labelEnt){
+          try { viewer.entities.remove(last._labelEnt); } catch(_){ }
+        }
+        try { viewer.entities.remove(last); } catch(_){ }
+        return;
+      }
+      // If no drawings, remove the most recently placed unit icon
+      // Prefer flagged units (_isUnit) but fall back to billboard heuristic
+      const units = viewer.entities.values.filter(e=> e.billboard && !e._isDrawing);
+      if (units.length === 0) return;
+      const lastUnit = units[units.length - 1];
+      try { viewer.entities.remove(lastUnit); } catch(_){ }
+    });
+    // Bulk clear (double-click) removes ALL drawings and ALL placed units
+    document.getElementById('btn-erase').addEventListener('dblclick', ()=>{
+      // Remove in-progress first (if any)
+      if (tempEntity){ try { viewer.entities.remove(tempEntity); } catch(_){ } tempEntity=null; drawPositions=[]; }
+      // Collect drawings and remove + feature cleanup
+      const drawings = viewer.entities.values.filter(e=> e._isDrawing);
+      drawings.forEach(d=>{
+        if (d._featureId){
+          const idx = features.findIndex(f=> f.id === d._featureId);
+          if (idx >= 0) features.splice(idx,1);
+        }
+        if (d._drawType === 'measure' && d._labelEnt){
+          try { viewer.entities.remove(d._labelEnt); } catch(_){ }
+        }
+        try { viewer.entities.remove(d); } catch(_){ }
+      });
+      // Collect unit billboards
+      const units = viewer.entities.values.filter(e=> e._isUnit);
+      units.forEach(u=>{ try { viewer.entities.remove(u); } catch(_){ } });
+      // Persist updated features if any were removed
+      saveAll();
+    });
 
     // Vehicle/unit tool wiring: click a tool to enter placement mode (click on map to place icons)
     function clearPlacement(){ if (placeMode && placeMode.btn) placeMode.btn.classList.remove('active'); placeMode = null; }
     function startPlacement(kind, btn){
       // Turn off drawing
-      drawMode = null; if (tempEntity){ try{ viewer.entities.remove(tempEntity);}catch(_){} tempEntity=null; }
+      // If leaving line drawing, preserve current line geometry instead of removing it
+      freezeLineIfEditing();
+      if (drawMode && drawMode !== 'line' && tempEntity){
+        const isDynamic = (
+          (tempEntity.polyline && tempEntity.polyline.positions instanceof Cesium.CallbackProperty) ||
+          (tempEntity.polygon && tempEntity.polygon.hierarchy instanceof Cesium.CallbackProperty)
+        );
+        if (isDynamic && !tempEntity._frozen){
+          try { viewer.entities.remove(tempEntity); } catch(_){ }
+        }
+        tempEntity = null;
+      }
+      drawMode = null;
+      // Ensure map controls restored if leaving line drawing
+      unlockMapAfterDrawing();
       // Toggle behavior: clicking the active tool turns it off
       if (placeMode && placeMode.kind === kind){ clearPlacement(); return; }
       // Clear previous
@@ -652,10 +766,39 @@
     const btnHeli = document.querySelector('#panel-tools .tool[title="Helicopter"]');
     const btnUav = document.querySelector('#panel-tools .tool[title="UAV"]');
     const btnTank = document.querySelector('#panel-tools .tool[title="Tank"]');
+  const btnMeasure = document.getElementById('btn-measure');
     btnJet && btnJet.addEventListener('click', ()=> startPlacement('jetfighter', btnJet));
     btnHeli && btnHeli.addEventListener('click', ()=> startPlacement('helicopter', btnHeli));
     btnUav && btnUav.addEventListener('click', ()=> startPlacement('uav', btnUav));
     btnTank && btnTank.addEventListener('click', ()=> startPlacement('tank', btnTank));
+  // Newly wired placement icons
+  const btnSoldierAction = document.querySelector('#panel-tools .tool[title="Soldier Action"]');
+  const btnSoldierStanding = document.querySelector('#panel-tools .tool[title="Soldier Standing"]');
+  const btnCar = document.querySelector('#panel-tools .tool[title="Car"]');
+  const btnMlrs = document.querySelector('#panel-tools .tool[title="MLRS"]');
+  const btnBattleship = document.querySelector('#panel-tools .tool[title="Battleship"]');
+  const btnSubmarine = document.querySelector('#panel-tools .tool[title="Submarine"]');
+  const btnExplosion = document.querySelector('#panel-tools .tool[title="Explosion"]');
+  const btnFlashPoint = document.querySelector('#panel-tools .tool[title="Flash Point"]');
+  btnSoldierAction && btnSoldierAction.addEventListener('click', ()=> startPlacement('soldierAction', btnSoldierAction));
+  btnSoldierStanding && btnSoldierStanding.addEventListener('click', ()=> startPlacement('soldierStanding', btnSoldierStanding));
+  btnCar && btnCar.addEventListener('click', ()=> startPlacement('car', btnCar));
+  btnMlrs && btnMlrs.addEventListener('click', ()=> startPlacement('mlrs', btnMlrs));
+  btnBattleship && btnBattleship.addEventListener('click', ()=> startPlacement('battleship', btnBattleship));
+  btnSubmarine && btnSubmarine.addEventListener('click', ()=> startPlacement('submarine', btnSubmarine));
+  btnExplosion && btnExplosion.addEventListener('click', ()=> startPlacement('explosion', btnExplosion));
+  btnFlashPoint && btnFlashPoint.addEventListener('click', ()=> startPlacement('flashpoint', btnFlashPoint));
+    // Measure tool toggle
+    if (btnMeasure){
+      btnMeasure.addEventListener('click', ()=>{
+        if (drawMode === 'measure'){ drawMode=null; btnMeasure.classList.remove('active'); return; }
+        freezeLineIfEditing();
+        if (placeMode){ if (placeMode.btn) placeMode.btn.classList.remove('active'); placeMode=null; }
+        document.querySelectorAll('#panel-tools .tool').forEach(b=> b.classList.remove('active'));
+        drawMode='measure'; btnMeasure.classList.add('active');
+        startDrawing();
+      });
+    }
 
     // Color palette
     document.querySelectorAll('.swatch').forEach(sw=>{
@@ -676,7 +819,22 @@
     const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
     function startDrawing(){
       drawPositions = [];
-      if (tempEntity){ viewer.entities.remove(tempEntity); tempEntity=null; }
+      if (tempEntity){
+        const isDynamic = (
+          (tempEntity.polyline && tempEntity.polyline.positions instanceof Cesium.CallbackProperty) ||
+          (tempEntity.polygon && tempEntity.polygon.hierarchy instanceof Cesium.CallbackProperty)
+        );
+        if (isDynamic && !tempEntity._frozen){
+          try { viewer.entities.remove(tempEntity); } catch(_){ }
+        }
+        tempEntity = null;
+      }
+      // Lock map interactions only for line drawing; otherwise restore
+      if (drawMode === 'line') {
+        lockMapDuringDrawing();
+      } else {
+        unlockMapAfterDrawing();
+      }
     }
     function cartesianFromClick(movement){
       const ray = viewer.camera.getPickRay(movement.position || movement.endPosition);
@@ -684,15 +842,21 @@
       return c || viewer.camera.pickEllipsoid((movement.position||movement.endPosition), viewer.scene.globe.ellipsoid);
     }
     handler.setInputAction((click)=>{
-      const c = cartesianFromClick(click); if (!c) return;
+      let c = cartesianFromClick(click); if (!c) return;
       if (drawMode){
+        // For line & measure drawing enforce fixed altitude of 4000m
+        if (drawMode === 'line' || drawMode === 'measure') {
+          const carto = Cesium.Cartographic.fromCartesian(c);
+          carto.height = 4000;
+          c = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
+        }
         drawPositions.push(c); updateTempEntity();
         return;
       }
       if (placeMode){
         try {
           const bSpec = placeMode.spec;
-          viewer.entities.add({
+          const ent = viewer.entities.add({
             position: c,
             name: bSpec.name || placeMode.kind,
             billboard: {
@@ -703,6 +867,7 @@
               disableDepthTestDistance: Number.POSITIVE_INFINITY
             }
           });
+          ent._isUnit = true; ent._unitKind = placeMode.kind;
         } catch(_){ /* ignore placement error */ }
         return;
       }
@@ -715,18 +880,95 @@
     function updateTempEntity(){
       const width = Math.max(3, Math.round(3 * (window.devicePixelRatio||1)));
       if (drawMode === 'line'){
-        if (!tempEntity){ tempEntity = viewer.entities.add({ polyline: { positions: new Cesium.CallbackProperty(()=> drawPositions.slice(), false), width, material: strokeColor } }); }
+        if (!tempEntity){
+          tempEntity = viewer.entities.add({ polyline: { positions: new Cesium.CallbackProperty(()=> drawPositions.slice(), false), width, material: strokeColor } });
+          tempEntity._isDrawing = true; tempEntity._drawType = 'line';
+        }
       } else if (drawMode === 'area'){
-        if (!tempEntity){ tempEntity = viewer.entities.add({ polygon: { hierarchy: new Cesium.CallbackProperty(()=> new Cesium.PolygonHierarchy(drawPositions.slice()), false), material: Cesium.Color.fromCssColorString(document.getElementById('areaFill').value).withAlpha(parseInt(document.getElementById('areaOpacity').value)/100), outline: true, outlineColor: strokeColor, outlineWidth: width } }); }
+        if (!tempEntity){
+          tempEntity = viewer.entities.add({ polygon: { hierarchy: new Cesium.CallbackProperty(()=> new Cesium.PolygonHierarchy(drawPositions.slice()), false), material: Cesium.Color.fromCssColorString(document.getElementById('areaFill').value).withAlpha(parseInt(document.getElementById('areaOpacity').value)/100), outline: true, outlineColor: strokeColor, outlineWidth: width } });
+          tempEntity._isDrawing = true; tempEntity._drawType = 'area';
+        }
+      } else if (drawMode === 'measure'){
+        if (!tempEntity){
+          tempEntity = viewer.entities.add({ polyline: { positions: new Cesium.CallbackProperty(()=> drawPositions.slice(), false), width, material: Cesium.Color.BLACK } });
+          tempEntity._isDrawing = true; tempEntity._drawType = 'measure';
+          const labelEnt = viewer.entities.add({
+            position: new Cesium.CallbackProperty(()=> midpointOfPositions(drawPositions) || viewer.camera.position, false),
+            label: {
+              text: new Cesium.CallbackProperty(()=> formatDistance(drawPositions), false),
+              font: '14px sans-serif',
+              fillColor: Cesium.Color.WHITE,
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 2,
+              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+              pixelOffset: new Cesium.Cartesian2(0,-8),
+              disableDepthTestDistance: Number.POSITIVE_INFINITY
+            }
+          });
+          tempEntity._labelEnt = labelEnt;
+        }
       }
     }
+    // Measurement helpers
+    function computeDistance(positions){
+      if (!positions || positions.length < 2) return 0;
+      let total=0; const ellipsoid=Cesium.Ellipsoid.WGS84;
+      for (let i=1;i<positions.length;i++){
+        const c1=Cesium.Cartographic.fromCartesian(positions[i-1], ellipsoid);
+        const c2=Cesium.Cartographic.fromCartesian(positions[i], ellipsoid);
+        const geodesic=new Cesium.EllipsoidGeodesic(c1,c2);
+        total+=geodesic.surfaceDistance;
+      }
+      return total;
+    }
+    function formatDistance(positions){
+      const d=computeDistance(positions);
+      if (d===0) return '0 m';
+      const txt = d<1000 ? `${d.toFixed(1)} m` : `${(d/1000).toFixed(2)} km`;
+      if (tempEntity) tempEntity._cachedDistanceText = txt;
+      return txt;
+    }
+    function midpointOfPositions(positions){
+      if (!positions || positions.length===0) return null;
+      if (positions.length===1) return positions[0];
+      const a=positions[positions.length-2];
+      const b=positions[positions.length-1];
+      return Cesium.Cartesian3.midpoint(a,b,new Cesium.Cartesian3());
+    }
     function finalizeDrawing(){
-      if (!tempEntity || drawPositions.length < (drawMode==='line'?2:3)){ drawMode=null; return; }
+      if (drawMode === 'measure'){
+        if (!tempEntity || drawPositions.length < 2) return; // need two points
+        try { tempEntity.polyline.positions = drawPositions.slice(); tempEntity._frozen = true; } catch(_){ }
+        if (tempEntity._labelEnt){
+          try {
+            const lbl = tempEntity._labelEnt;
+            lbl.position = midpointOfPositions(drawPositions);
+            lbl.label.text = formatDistance(drawPositions);
+          } catch(_){ }
+        }
+        drawMode=null; drawPositions=[]; tempEntity=null; return;
+      }
+      if (!tempEntity || drawPositions.length < (drawMode==='line'?2:3)){
+        // If line drawing and user wants camera control (unlock) but fewer than 2 points placed,
+        // keep the existing first point / temp entity so they can continue later.
+        if (drawMode === 'line') {
+          unlockMapAfterDrawing(); // allow camera control
+          // Do NOT clear drawMode, tempEntity, or drawPositions; user can resume adding points.
+          return;
+        }
+        // For area drawing we still cancel if insufficient vertices (<3)
+        drawMode=null; return;
+      }
       // Persist feature and link to active preset (auto-link)
       const f = { id: uid('feat'), type: drawMode, geometry: drawPositions.map(p=> Cesium.Cartographic.fromCartesian(p)), style: { color: strokeColor.toCssColorString && strokeColor.toCssColorString() }, linkedPresetIds: activePresetId?[activePresetId]:[], isGlobal: false };
       features.push(f); saveAll();
+      // Attach feature id to entity for later erase
+      if (tempEntity){ tempEntity._featureId = f.id; }
       drawMode = null; drawPositions = []; tempEntity = null; // leave entity on viewer
       filterFeatures('current');
+      // Restore map controls after finishing line drawing
+      unlockMapAfterDrawing();
     }
 
     function filterFeatures(scope){
@@ -752,6 +994,41 @@
         viewer.resolutionScale = oldScale; ui.forEach((el,i)=> el.style.display = prev[i]);
       }
     });
+
+    // Map interaction lock helpers (specific to line drawing mode)
+    function lockMapDuringDrawing(){
+      const ctrl = viewer.scene.screenSpaceCameraController;
+      if (!ctrl._wasLocked) {
+        ctrl._prev = {
+          enableRotate: ctrl.enableRotate,
+          enableTranslate: ctrl.enableTranslate,
+          enableZoom: ctrl.enableZoom,
+          enableTilt: ctrl.enableTilt,
+          enableLook: ctrl.enableLook
+        };
+        ctrl._wasLocked = true;
+      }
+      ctrl.enableRotate = false;
+      ctrl.enableTranslate = false;
+      ctrl.enableZoom = false;
+      ctrl.enableTilt = false;
+      ctrl.enableLook = false;
+      // Show lock indicator
+      const li = document.getElementById('lockIndicator'); if (li) li.style.display = 'block';
+    }
+    function unlockMapAfterDrawing(){
+      const ctrl = viewer.scene.screenSpaceCameraController;
+      if (ctrl._wasLocked && ctrl._prev){
+        ctrl.enableRotate = ctrl._prev.enableRotate;
+        ctrl.enableTranslate = ctrl._prev.enableTranslate;
+        ctrl.enableZoom = ctrl._prev.enableZoom;
+        ctrl.enableTilt = ctrl._prev.enableTilt;
+        ctrl.enableLook = ctrl._prev.enableLook;
+        ctrl._wasLocked = false;
+      }
+      // Hide lock indicator
+      const li = document.getElementById('lockIndicator'); if (li) li.style.display = 'none';
+    }
 
     // Boot
     loadAll();
