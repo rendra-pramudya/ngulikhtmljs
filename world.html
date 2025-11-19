@@ -642,18 +642,20 @@
     // Simple unit placement mode (e.g., Jetfighter)
     let placeMode = null; // { kind, spec, btn }
     const UNIT_SPECS = {
-      jetfighter: { icon: 'image/IconJetFighterG.jpg', w: 32, h: 32, name: 'Jetfighter' },
-      helicopter: { icon: 'image/IconHelicopterG.jpg', w: 32, h: 32, name: 'Helicopter' },
-      uav:        { icon: 'image/IconUAVG.jpg',        w: 32, h: 32, name: 'UAV' },
-      tank:       { icon: 'image/IconTankG.jpg',       w: 32, h: 32, name: 'Tank' },
-      soldierAction:   { icon: 'image/IconSoldierActionG.jpg',   w: 32, h: 32, name: 'Soldier Action' },
-      soldierStanding: { icon: 'image/IconSoldierStandingG.jpg', w: 32, h: 32, name: 'Soldier Standing' },
-      car:             { icon: 'image/IconCarG.jpg',             w: 32, h: 32, name: 'Car' },
-      mlrs:            { icon: 'image/IconMLRSG.jpg',            w: 32, h: 32, name: 'MLRS' },
-      battleship:      { icon: 'image/IconBattleshipG.jpg',      w: 32, h: 32, name: 'Battleship' },
-      submarine:       { icon: 'image/IconSubmarineG.jpg',       w: 32, h: 32, name: 'Submarine' },
-      explosion:       { icon: 'image/IconExplosionG.jpg',       w: 32, h: 32, name: 'Explosion' },
-      flashpoint:      { icon: 'image/IconFlashpointG.jpg',      w: 32, h: 32, name: 'Flash Point' }
+      // To use 3D models, set modelUri to a .glb/.gltf path and we'll render a model
+      // with constant on-screen size via minimumPixelSize. Falls back to billboard if missing.
+      jetfighter: { icon: 'image/IconJetFighterG.jpg', w: 32, h: 32, pixel: 32, name: 'Jetfighter', modelUri: 'models/JetFighter.glb', scale: 1.0 },
+      helicopter: { icon: 'image/IconHelicopterG.jpg', w: 32, h: 32, pixel: 32, name: 'Helicopter', modelUri: null },
+      uav:        { icon: 'image/IconUAVG.jpg',        w: 32, h: 32, pixel: 32, name: 'UAV',        modelUri: 'models/Uav.glb',  scale: 1.0 },
+      tank:       { icon: 'image/IconTankG.jpg',       w: 32, h: 32, pixel: 32, name: 'Tank',       modelUri: 'models/Tank.glb', scale: 1.0 },
+      soldierAction:   { icon: 'image/IconSoldierActionG.jpg',   w: 32, h: 32, pixel: 32, name: 'Soldier Action',   modelUri: null },
+      soldierStanding: { icon: 'image/IconSoldierStandingG.jpg', w: 32, h: 32, pixel: 32, name: 'Soldier Standing', modelUri: null },
+      car:             { icon: 'image/IconCarG.jpg',             w: 32, h: 32, pixel: 32, name: 'Car',             modelUri: null },
+      mlrs:            { icon: 'image/IconMLRSG.jpg',            w: 32, h: 32, pixel: 32, name: 'MLRS',            modelUri: null },
+      battleship:      { icon: 'image/IconBattleshipG.jpg',      w: 32, h: 32, pixel: 32, name: 'Battleship',      modelUri: null },
+      submarine:       { icon: 'image/IconSubmarineG.jpg',       w: 32, h: 32, pixel: 32, name: 'Submarine',       modelUri: null },
+      explosion:       { icon: 'image/IconExplosionG.jpg',       w: 32, h: 32, pixel: 32, name: 'Explosion',       modelUri: null },
+      flashpoint:      { icon: 'image/IconFlashpointG.jpg',      w: 32, h: 32, pixel: 32, name: 'Flash Point',     modelUri: null }
     };
     function setToolActive(which){
       document.querySelectorAll('#panel-tools .tool').forEach(b=> b.classList.remove('active'));
@@ -844,10 +846,10 @@
     handler.setInputAction((click)=>{
       let c = cartesianFromClick(click); if (!c) return;
       if (drawMode){
-        // For line & measure drawing enforce fixed altitude of 4000m
+        // Enforce fixed altitude: line=1900m, measure=4000m
         if (drawMode === 'line' || drawMode === 'measure') {
           const carto = Cesium.Cartographic.fromCartesian(c);
-          carto.height = 4000;
+          carto.height = (drawMode === 'line') ? 1900 : 4000;
           c = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
         }
         drawPositions.push(c); updateTempEntity();
@@ -856,17 +858,43 @@
       if (placeMode){
         try {
           const bSpec = placeMode.spec;
-          const ent = viewer.entities.add({
-            position: c,
-            name: bSpec.name || placeMode.kind,
-            billboard: {
-              image: bSpec.icon,
-              width: bSpec.w,
-              height: bSpec.h,
-              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-              disableDepthTestDistance: Number.POSITIVE_INFINITY
-            }
-          });
+          // Enforce fixed altitude of 2000m for placed units (billboard or model)
+          {
+            const carto = Cesium.Cartographic.fromCartesian(c);
+            carto.height = 2000;
+            c = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height);
+          }
+          let ent;
+          if (bSpec.modelUri){
+            // 3D model with screen-size constraint via minimumPixelSize
+            ent = viewer.entities.add({
+              position: c,
+              name: bSpec.name || placeMode.kind,
+              model: {
+                uri: bSpec.modelUri,
+                scale: bSpec.scale || 1.0,
+                minimumPixelSize: bSpec.pixel || bSpec.w || 32,
+                maximumScale: bSpec.maxScale || 200,
+                heightReference: Cesium.HeightReference.NONE,
+                // Keep model visible against terrain
+                silhouetteColor: new Cesium.ConstantProperty(Cesium.Color.BLACK.withAlpha(0.4)),
+                silhouetteSize: 0
+              }
+            });
+          } else {
+            // Fallback to billboard icon
+            ent = viewer.entities.add({
+              position: c,
+              name: bSpec.name || placeMode.kind,
+              billboard: {
+                image: bSpec.icon,
+                width: bSpec.w,
+                height: bSpec.h,
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY
+              }
+            });
+          }
           ent._isUnit = true; ent._unitKind = placeMode.kind;
         } catch(_){ /* ignore placement error */ }
         return;
